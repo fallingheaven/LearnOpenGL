@@ -1630,3 +1630,61 @@ vec2 IntegrateBRDF(float NdotV, float roughness)
 
 ## 实战
 
+### 调试
+
+#### 错误信息输出
+
+`glGetError()`可以输出前面最近的一次报错，返回错误代码的含义，这些错误代码可以在诸如 [glBindTexture - OpenGL 3 - docs.gl](https://docs.gl/gl3/glBindTexture)  中找到
+
+```c++
+GLenum glCheckError_(const char *file, int line)
+{
+    GLenum errorCode;
+    while ((errorCode = glGetError()) != GL_NO_ERROR)
+    {
+        std::string error;
+        switch (errorCode)
+        {
+            case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
+            case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
+            case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
+            case GL_STACK_OVERFLOW:                error = "STACK_OVERFLOW"; break;
+            case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
+            case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+            case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+        }
+        std::cout << error << " | " << file << " (" << line << ")" << std::endl;
+    }
+    return errorCode;
+}
+#define glCheckError() glCheckError_(__FILE__, __LINE__) 
+// __FILE__编译时被替换为编译得到的文件路径，__LINE__被替换为行号
+```
+
+另外当调用`glGetError()`后，这个错误信息就被清除，再次取的时候只会返回 0
+
+#### 调试输出拓展
+
+```c++
+glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+// glfw中通过此函数初始化调试上下文
+void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, GLenum severity, 
+                            GLsizei length, const char *message, const void *userParam);
+// 创建这么一个回调函数
+glEnable(GL_DEBUG_OUTPUT);
+glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); 
+glDebugMessageCallback(glDebugOutput, nullptr);
+glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE); // 控制想要哪些错误
+// 将其进行注册
+
+glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_ERROR, 0,                       
+                     GL_DEBUG_SEVERITY_MEDIUM, -1, "error message here"); 
+// 通过glDebugMessageInsert函数可以输出调试信息，可以给GPU调试器查看，对多pass有用，也可以用来计时进行性能分析
+glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1, -1, "GBuffer Pass");
+...
+glPopDebugGroup();
+// 通过这样的栈结构，我们就可以在调试器中看到这个层级结构
+```
+
+### 文本渲染
+

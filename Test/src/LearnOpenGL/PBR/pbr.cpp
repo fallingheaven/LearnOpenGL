@@ -412,6 +412,18 @@ unsigned int renderBRDFMap()
     return brdfLUTTexture;
 }
 
+void PrintExtensions()
+{
+    GLint nExtensions;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &nExtensions);
+
+    for (GLint i = 0; i < nExtensions; ++i)
+    {
+        const GLubyte* extension = glGetStringi(GL_EXTENSIONS, i);
+        std::cout << extension << std::endl;
+    }
+}
+
 int main()
 {
     system::init();
@@ -444,6 +456,17 @@ int main()
     unsigned int specularMap = renderEnvMapToSpecularMap(envCubeMap);
     unsigned int brdfLUT = renderBRDFMap();
 
+    // PrintExtensions();
+
+    GLint flags; glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+    if (flags & GL_CONTEXT_FLAG_DEBUG_BIT)
+    {
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback(Utility::glDebugOutput, nullptr);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+    }
+
     while (!system::systemShouldEnd())
     {
         system::update([envCubeMap, irradianceMap, specularMap, brdfLUT](){
@@ -472,11 +495,11 @@ int main()
             glBindTexture(GL_TEXTURE_CUBE_MAP, specularMap);
         });
 
-        GLuint errorMsg = glGetError();
-        if (errorMsg != GL_NO_ERROR)
-        {
-            std::cout << glGetError() << std::endl;
-        }
+        // GLuint errorMsg = glGetError();
+        // if (errorMsg != GL_NO_ERROR)
+        // {
+        //     std::cout << errorMsg << std::endl;
+        // }
     }
 
     return 0;

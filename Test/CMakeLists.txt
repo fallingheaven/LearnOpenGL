@@ -23,6 +23,8 @@ function(configure_target target_name sources)
         ${CMAKE_SOURCE_DIR}/lib/imgui
         ${CMAKE_SOURCE_DIR}/lib/imgui/backend
         ${CMAKE_SOURCE_DIR}/lib/stb
+        ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1
+        ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1/include
         ${CMAKE_SOURCE_DIR}/thirdparty/glfw/include
         ${CMAKE_SOURCE_DIR}/lib/assimp/assimp-install/include/assimp
     )

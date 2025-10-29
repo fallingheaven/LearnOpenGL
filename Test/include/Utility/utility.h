@@ -28,4 +28,7 @@ namespace Utility
 
     std::vector<glm::vec3> genSSAOKernel(int kernelSize); // 生成SSAO采样核
     unsigned int genSSAONoiseTexture(int texSize);// 生成单位半球随机向量纹理
+
+    void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, GLenum severity,
+                            GLsizei length, const char *message, const void *userParam); // OpenGL调试输出
 }

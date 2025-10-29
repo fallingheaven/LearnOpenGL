@@ -17,6 +17,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include <freetype2/ft2build.h>
+#include FT_FREETYPE_H
+
 #include <window.h>
 #include <shader.hpp>
 #include <system.h>
