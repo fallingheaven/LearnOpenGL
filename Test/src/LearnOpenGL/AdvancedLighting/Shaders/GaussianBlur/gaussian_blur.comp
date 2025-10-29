@@ -1,0 +1,80 @@
+#version 440 core
+layout (local_size_x = 16, local_size_y = 16) in;
+layout (rgba16f, binding = 0) uniform image2D inputImage;
+layout (rgba16f, binding = 1) uniform image2D outputImage;
+
+// 双缓冲共享内存：前一半和后一半轮流作为读写目标
+shared vec4 sharedData[2][26][26]; // [buffer_index][y][x]
+//shared vec4 sharedData[18][18]; // [buffer_index][y][x]
+
+const float weights[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216); // 11*11
+
+void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 workGroupCoord = ivec2(gl_LocalInvocationID.xy) + ivec2(5); // 偏移以适应边界
+
+    int readBuffer = 0;
+    int writeBuffer = 1;
+
+    // 1. 将输入数据加载到第一个缓冲区的共享内存
+    sharedData[readBuffer][workGroupCoord.y][workGroupCoord.x] = imageLoad(inputImage, texelCoord);
+
+    // 等待所有线程完成数据加载
+    barrier();
+    memoryBarrierShared();
+
+    imageStore(outputImage, texelCoord, sharedData[readBuffer][workGroupCoord.y][workGroupCoord.x]);
+
+//    // 2. 在共享内存中执行多次迭代，使用双缓冲交替
+//    for (int iteration = 0; iteration < 5; iteration++) {
+//        // 从 readBuffer 读取，写入 writeBuffer
+//        vec4 currentPixel = sharedData[readBuffer][workGroupCoord.y][workGroupCoord.x];
+////        vec4 currentPixel = vec4(0.0);
+//
+//        // 水平模糊（从readBuffer读取）
+//        vec4 horizontalResult = currentPixel * weights[0];
+//        for (int i = -5; i <= 5; i++) {
+//            if (i == 0) continue; // 已经加过中心像素
+//            int neighbor = workGroupCoord.x + i;
+//            if (neighbor < 5 || neighbor >= 21)
+//            {
+//                horizontalResult += imageLoad(inputImage, texelCoord + ivec2(0,i)) * weights[max(abs(i) - 1, 0)];
+//            }
+//            else
+//            {
+//                horizontalResult += sharedData[readBuffer][workGroupCoord.y][neighbor] * weights[max(abs(i) - 1, 0)];
+//            }
+//        }
+//
+//        // 垂直模糊（从readBuffer读取，但写入writeBuffer）
+//        vec4 finalResult = horizontalResult * weights[0];
+//        for (int i = -5; i <= 5; i++) {
+//            if (i == 0) continue; // 已经加过中心像素
+//            int neighbor = workGroupCoord.y + i;
+//            if (neighbor < 5 || neighbor >= 21)
+//            {
+//                finalResult += imageLoad(inputImage, texelCoord + ivec2(i,0)) * weights[max(abs(i) - 1, 0)];
+//            }
+//            else
+//            {
+//                finalResult += sharedData[readBuffer][neighbor][workGroupCoord.x] * weights[max(abs(i) - 1, 0)];
+//            }
+//        }
+//
+//        // 将结果写入writeBuffer
+//        sharedData[writeBuffer][workGroupCoord.y][workGroupCoord.x] = finalResult;
+//
+//        // 交换读写缓冲区
+//        int temp = readBuffer;
+//        readBuffer = writeBuffer;
+//        writeBuffer = temp;
+//
+//        // 等待所有线程完成当前迭代
+//        barrier();
+//        memoryBarrierShared();
+//    }
+//
+//    // 3. 将最终结果写回全局内存
+//    imageStore(outputImage, texelCoord, sharedData[readBuffer][workGroupCoord.y][workGroupCoord.x]);
+////    imageStore(outputImage, texelCoord, vec4(1, 0, 0, 1));
+}
