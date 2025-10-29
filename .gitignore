@@ -2,3 +2,6 @@ Test/Assets/Materials/159_hdrmaps_com_free_10K.exr
 Test/Assets/Materials/hdr_map.hdr
 
 Test/cmake-build-debug
+
+Test/lib/assimp/
+Test/lib/stb/
