@@ -30,6 +30,7 @@ namespace opengl
         static float getDeltaTime();
         static bool systemShouldEnd();
 
+        static bool drawSkyBox;
         static bool useBlinnPhong;
         static bool useHDR;
         static bool deferredLighting;
@@ -44,8 +45,6 @@ namespace opengl
         static double lastFPSTime;
         static int frameCount;
         static float fps;
-
-        static bool drawSkyBox;
 
         static void calculateFPS();
 

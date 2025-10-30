@@ -23,13 +23,17 @@ function(configure_target target_name sources)
         ${CMAKE_SOURCE_DIR}/lib/imgui
         ${CMAKE_SOURCE_DIR}/lib/imgui/backend
         ${CMAKE_SOURCE_DIR}/lib/stb
-        ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1
-        ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1/include
+#        ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1
+#        ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1/include
         ${CMAKE_SOURCE_DIR}/thirdparty/glfw/include
         ${CMAKE_SOURCE_DIR}/lib/assimp/assimp-install/include/assimp
     )
 
     find_package(assimp REQUIRED)
+
+    set(FREETYPE_DIR ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1)
+    set(FREETYPE_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1/include)
+    find_package(Freetype REQUIRED)
 
     target_link_libraries(${target_name} PRIVATE
         glad
@@ -39,6 +43,7 @@ function(configure_target target_name sources)
         gdi32
         shell32
         assimp::assimp
+        Freetype::Freetype
     )
 
     target_sources(${target_name} PRIVATE

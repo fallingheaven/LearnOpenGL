@@ -165,8 +165,6 @@ namespace opengl
 
         func();
 
-        if (drawSkyBox)
-            camera->drawSkybox();
         // camera->drawSkybox();
         camera->drawPingPongFrameBuffer(); // 绘制高斯模糊后的图像到相机帧缓冲
         camera->drawFullScreen(true); // 绘制全屏四边形，将相机帧缓冲内容显示到屏幕上

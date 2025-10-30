@@ -1688,3 +1688,66 @@ glPopDebugGroup();
 
 ### 文本渲染
 
+#### 位图字体
+
+传统方法需要我们将需要的字符从字体中提取到一个大纹理（位图字体），需要绘制的时候就将字符（或者称为字形Glyph）对应区域绘制到2D四边形上
+
+这里我们使用`FreeType`库，他能自动将字体渲染到位图的库，并提供了若干字体控制功能
+
+```c++
+FT_Library ft;
+if (FT_Init_FreeType(&ft))
+    std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+// 初始化FreeType库
+FT_Face face;
+if (FT_New_Face(ft, "fonts/arial.ttf", 0, &face))
+    std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+// 将这个字体加载为一个FreeType称之为面(Face)的东西
+if (FT_Load_Char(face, 'X', FT_LOAD_RENDER))
+    std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+// 加载某个字体，会被存储在face->glyph->bitmap.buffer中
+```
+
+| 属性          | 获取方式                    | 生成位图描述                                                 |
+| :------------ | :-------------------------- | :----------------------------------------------------------- |
+| **width**     | `face->glyph->bitmap.width` | 位图宽度（像素）                                             |
+| **height**    | `face->glyph->bitmap.rows`  | 位图高度（像素）                                             |
+| **bearing X** | `face->glyph->bitmap_left`  | 水平距离，即位图相对于原点的水平位置（像素）                 |
+| **bearing Y** | `face->glyph->bitmap_top`   | 垂直距离，即位图相对于基准线的垂直位置（像素）               |
+| **advance**   | `face->glyph->advance`      | 预留值，即原点到下一个字形原点的offset（单位：1/64像素）<br />在使用矩阵变换face后，这个也会变换 |
+
+```c++
+FT_Matrix matrix;
+FT_Vector pen;
+double angle = glm::radians(90.0); // 旋转角度，单位为弧度
+matrix.xx = (FT_Fixed)(cos(angle) * 0x10000L);
+matrix.xy = (FT_Fixed)(-sin(angle) * 0x10000L);
+matrix.yx = (FT_Fixed)(sin(angle) * 0x10000L);
+matrix.yy = (FT_Fixed)(cos(angle) * 0x10000L);
+pen.x = 0;
+pen.y = 0;
+FT_Set_Transform(face, &matrix, &pen);
+// 变换face
+
+GLfloat xpos = x + ch.Bearing.x * scale;
+GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
+GLfloat w = ch.Size.x * scale;
+GLfloat h = ch.Size.y * scale;
+// 对每个字符更新VBO
+GLfloat vertices[6][4] = {
+    { xpos,     ypos + h,   0.0, 0.0 },
+    { xpos,     ypos,       0.0, 1.0 },
+    { xpos + w, ypos,       1.0, 1.0 },
+
+    { xpos,     ypos + h,   0.0, 0.0 },
+    { xpos + w, ypos,       1.0, 1.0 },
+    { xpos + w, ypos + h,   1.0, 0.0 }
+};
+// 字符顶点表示方式
+```
+
+`FreeType`有个好处是它本身存储的是矢量，所以在放大字体时，他会重新根据矢量数据绘制位图，因此不会有锯齿化，除非在着色器模型变换进行缩放，这时采样时就会锯齿化
+
+#### SDF绘制字体
+
+我们可以将字体转成SDF的图，然后在着色器中我们设置阈值，这样就能自然地绘制出字体了，也能很方便地绘制模糊、描边等效果

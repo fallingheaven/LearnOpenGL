@@ -1,6 +1,15 @@
 #include <common.h>
-#include <map>
+
 using namespace opengl;
+
+struct Character {
+    GLuint     TextureID;  // 字形纹理的ID
+    glm::ivec2 Size;       // 字形大小
+    glm::ivec2 Bearing;    // 从基准线到字形左部/顶部的偏移值
+    glm::ivec2 Advance;    // 原点距下一个字形原点的二维距离
+};
+
+std::map<wchar_t, Character> Characters;
 
 std::map<std::string, Model*> models;
 std::map<std::string, Shader*> shaders;
@@ -40,6 +49,12 @@ void loadShaders()
         FileSystem::getPath("src/LearnOpenGL/PBR/Shaders/BRDFMap/brdfMap.frag")
     );
     shaders["brdfShader"] = brdfShader;
+
+    auto textShader = new Shader(
+        FileSystem::getPath("src/LearnOpenGL/PBR/Shaders/Text/text.vert"),
+        FileSystem::getPath("src/LearnOpenGL/PBR/Shaders/Text/text.frag")
+    );
+    shaders["text"] = textShader;
 }
 
 void setLightInfo(Shader* shader)
@@ -164,10 +179,10 @@ unsigned int renderRadianceEquirectangularMapToCubeMap()
     // 加载 HDR 环境贴图
     stbi_set_flip_vertically_on_load(true);
     int width, height, nrComponents;
-    float *data = stbi_loadf(FileSystem::getPath("Assets/Materials/hdr_map.hdr").c_str(),
-        &width, &height, &nrComponents, 0);
-    // float *data = stbi_loadf(FileSystem::getPath("Assets/Materials/newport_loft.hdr").c_str(),
+    // float *data = stbi_loadf(FileSystem::getPath("Assets/Materials/hdr_map.hdr").c_str(),
     //     &width, &height, &nrComponents, 0);
+    float *data = stbi_loadf(FileSystem::getPath("Assets/Materials/newport_loft.hdr").c_str(),
+        &width, &height, &nrComponents, 0);
     unsigned int hdrTexture;
     if (data)
     {
@@ -424,6 +439,174 @@ void PrintExtensions()
     }
 }
 
+void loadFont(std::string& fontPath)
+{
+    std::setlocale(LC_ALL, "en_US.UTF-8"); // 或者 "zh_CN.UTF-8"
+
+    FT_Library ft;
+    if (FT_Init_FreeType(&ft))
+        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+
+    FT_Face face;
+    if (FT_New_Face(ft, fontPath.c_str(), 0, &face))
+        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+
+    FT_Set_Pixel_Sizes(face, 0, 48);
+
+    FT_Matrix matrix;
+    FT_Vector pen;
+    double angle = glm::radians(90.0); // 旋转角度，单位为弧度
+    matrix.xx = (FT_Fixed)(cos(angle) * 0x10000L);
+    matrix.xy = (FT_Fixed)(-sin(angle) * 0x10000L);
+    matrix.yx = (FT_Fixed)(sin(angle) * 0x10000L);
+    matrix.yy = (FT_Fixed)(cos(angle) * 0x10000L);
+    pen.x = 0;
+    pen.y = 0;
+    FT_Set_Transform(face, &matrix, &pen);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //禁用字节对齐限制
+    for (GLubyte c = 0; c < 128; c++)
+    {
+        // 加载字符的字形
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+        {
+            std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+            continue;
+        }
+        // 生成纹理
+        GLuint texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RED,
+            face->glyph->bitmap.width,
+            face->glyph->bitmap.rows,
+            0,
+            GL_RED,
+            GL_UNSIGNED_BYTE,
+            face->glyph->bitmap.buffer
+        );
+        // 设置纹理选项
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // 储存字符供之后使用
+        Character character = {
+            texture,
+            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+            glm::ivec2(face->glyph->advance.x, face->glyph->advance.y)
+        };
+        Characters.insert(std::pair<wchar_t, Character>((wchar_t)c, character));
+    }
+
+    std::wstring chinese_chars = L"测试字体渲染功能";
+    for (wchar_t c : chinese_chars) {
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+            std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+            continue;
+        }
+        // ... (与上面完全相同的纹理生成和存储逻辑)
+        GLuint texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexImage2D(
+            GL_TEXTURE_2D, 0, GL_RED,
+            face->glyph->bitmap.width, face->glyph->bitmap.rows,
+            0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer
+        );
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        Character character = {
+            texture,
+            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+            glm::ivec2(face->glyph->advance.x, face->glyph->advance.y)
+        };
+        // std::cout << c << ' ' << character.TextureID << std::endl;
+        Characters.insert(std::pair<wchar_t, Character>(c, character));
+    }
+
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
+}
+
+unsigned int textVAO, textVBO;
+
+void bindTextVAO()
+{
+    glGenVertexArrays(1, &textVAO);
+    glGenBuffers(1, &textVBO);
+    glBindVertexArray(textVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, nullptr, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void renderText(Shader *s, std::wstring &text, GLfloat x, GLfloat y, GLfloat scale, glm::vec3 color)
+{
+    glm::mat4 projection = glm::ortho(0.0f, (float)window::getWidth(), 0.0f, (float)window::getHeight());
+
+    s->use();
+    s->setVec3("textColor", color);
+    s->setMat4("projection", projection);
+    s->setInt("text", 0);
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glBindVertexArray(textVAO);
+    glActiveTexture(GL_TEXTURE0);
+    // 遍历文本中所有的字符
+    for (wchar_t c : text)
+    {
+        Character ch = Characters[c];
+
+        GLfloat xpos = x + ch.Bearing.x * scale;
+        GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
+
+        GLfloat w = ch.Size.x * scale;
+        GLfloat h = ch.Size.y * scale;
+        // 对每个字符更新VBO
+        GLfloat vertices[6][4] = {
+            { xpos,     ypos + h,   0.0, 0.0 },
+            { xpos,     ypos,       0.0, 1.0 },
+            { xpos + w, ypos,       1.0, 1.0 },
+
+            { xpos,     ypos + h,   0.0, 0.0 },
+            { xpos + w, ypos,       1.0, 1.0 },
+            { xpos + w, ypos + h,   1.0, 0.0 }
+        };
+        // 在四边形上绘制字形纹理
+        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+        // 更新VBO内存的内容
+        glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // 绘制四边形
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // 更新位置到下一个字形的原点，注意单位是1/64像素
+        auto advance = glm::mat4(1.0f);
+        advance = glm::rotate(advance, glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::ivec2 offset = (glm::mat2)advance * ch.Advance;
+        x += (offset.x >> 6) * scale; // 位偏移6个单位来获取单位为像素的值 (2^6 = 64)
+        y += (offset.y >> 6) * scale; // 同时更新y坐标
+    }
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glEnable(GL_DEPTH_TEST);
+}
+
 int main()
 {
     system::init();
@@ -467,6 +650,10 @@ int main()
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     }
 
+    std::string fontPath = FileSystem::getPath("Assets/Fonts/AaFuLuBangShu/AaFuLuBangShu-2.ttf");
+    loadFont(fontPath);
+    bindTextVAO();
+
     while (!system::systemShouldEnd())
     {
         system::update([envCubeMap, irradianceMap, specularMap, brdfLUT](){
@@ -486,13 +673,18 @@ int main()
             shader->setBool("useIBL", system::useIBL);
             shader->setBool("useSpecularIBL", system::useSpecularIBL);
 
-            models["sphere"]->DrawInstanced(*shader, rows*cols, 3);
+            // models["sphere"]->DrawInstanced(*shader, rows*cols, 3);
 
             // debug输出brdfLUT，即BRDF积分贴图
             // system::getCamera()->drawFullScreen(brdfLUT);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_CUBE_MAP, specularMap);
+            if (system::drawSkyBox)
+                system::getCamera()->drawSkybox(); // 渲染字体需要先渲染天空盒
+
+            std::wstring wtext = L"测试字体渲染功能";
+            renderText(shaders["text"], wtext, 50.0f, 25.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
         });
 
         // GLuint errorMsg = glGetError();

@@ -1,5 +1,9 @@
 #pragma once
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -29,3 +33,6 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
+
+#include <locale>
