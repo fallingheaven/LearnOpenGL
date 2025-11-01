@@ -55,6 +55,12 @@ void loadShaders()
         FileSystem::getPath("src/LearnOpenGL/PBR/Shaders/Text/text.frag")
     );
     shaders["text"] = textShader;
+
+    auto spriteShader = new Shader(
+        FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.vert"),
+        FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.frag")
+    );
+    shaders["sprite"] = spriteShader;
 }
 
 void setLightInfo(Shader* shader)

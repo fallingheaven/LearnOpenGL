@@ -1,0 +1,49 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.0.6 Chrome/138.0.7204.100 Electron/37.2.3 Safari/537.36" version="28.0.6">
+  <diagram name="第 1 页" id="4AwOGDmng9t6TeZg1gKG">
+    <mxGraphModel dx="718" dy="570" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="aXx6nWcxq6VXzFUx9lW_-1" target="aXx6nWcxq6VXzFUx9lW_-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="aXx6nWcxq6VXzFUx9lW_-1" target="aXx6nWcxq6VXzFUx9lW_-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-1" value="初始化" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="140" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-2" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="230" y="140" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="aXx6nWcxq6VXzFUx9lW_-4" target="aXx6nWcxq6VXzFUx9lW_-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-4" value="初始化camera" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="240" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="aXx6nWcxq6VXzFUx9lW_-6" target="aXx6nWcxq6VXzFUx9lW_-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-6" value="初始化场景" style="whiteSpace=wrap;html=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="30" y="340" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="aXx6nWcxq6VXzFUx9lW_-8" target="aXx6nWcxq6VXzFUx9lW_-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-8" value="创建窗口" style="whiteSpace=wrap;html=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="30" y="430" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="aXx6nWcxq6VXzFUx9lW_-10" target="aXx6nWcxq6VXzFUx9lW_-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-10" value="初始化glfw、glad、imgui" style="whiteSpace=wrap;html=1;rounded=0;spacingLeft=3;spacingRight=3;" vertex="1" parent="1">
+          <mxGeometry x="230" y="430" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="aXx6nWcxq6VXzFUx9lW_-12" value="创建所需要的OpenGL对象" style="whiteSpace=wrap;html=1;rounded=0;spacingLeft=3;spacingRight=3;" vertex="1" parent="1">
+          <mxGeometry x="430" y="430" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

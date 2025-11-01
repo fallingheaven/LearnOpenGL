@@ -24,12 +24,15 @@
 #include <freetype2/ft2build.h>
 #include FT_FREETYPE_H
 
+#include <game.h>
+#include <scene.h>
 #include <window.h>
 #include <shader.hpp>
 #include <system.h>
 #include <filesystem.hpp>
 #include <model.h>
 #include <utility.h>
+#include <spriteRenderer.h>
 
 #include <iostream>
 #include <vector>

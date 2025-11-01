@@ -1,29 +1,14 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <system.h>
-#include <window.h>
 #include <game.h>
+#include <window.h>
 
 namespace opengl
 {
-    window* system::window = nullptr;
-    camera* system::camera = nullptr;
-    float system::lastFrameTime = -1;
+    Game* Game::instance = nullptr;
 
-    double system::lastFPSTime = 0.0;
-    int system::frameCount = 0;
-    float system::fps = 0.0f;
-
-    bool system::drawSkyBox = true;
-    bool system::useBlinnPhong = true;
-    bool system::useHDR = false;
-    bool system::deferredLighting = true;
-    bool system::useSSAO = true;
-    bool system::useIBL = true;
-    bool system::useSpecularIBL = true;
-
-    void system::init()
+    void Game::init()
     {
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -32,10 +17,13 @@ namespace opengl
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
         camera = new class camera();
-        system::setCamera(camera);
+
+        scenes = {
+            {"default", new Scene()}
+        };
     }
 
-    bool system::createWindow(const char* windowName, int width, int height, GLFWmonitor* monitor, GLFWwindow* share)
+    bool Game::createWindow(const char* windowName, int width, int height, GLFWmonitor* monitor, GLFWwindow* share)
     {
         if (window == nullptr)
         {
@@ -54,7 +42,7 @@ namespace opengl
 
         window->setInstance(tmp);
         window->init(width, height);
-
+        setWindow(window);
 
         if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
         {
@@ -66,8 +54,8 @@ namespace opengl
 
         glfwMakeContextCurrent(window->getInstance());
         // 设置回调函数
-        glfwSetCursorPosCallback(window->getInstance(), window::mouse_callback);
-        glfwSetScrollCallback(window->getInstance(), window::scroll_callback);
+        // glfwSetCursorPosCallback(window->getInstance(), window::mouse_callback);
+        // glfwSetScrollCallback(window->getInstance(), window::scroll_callback);
         glfwSetWindowSizeCallback(window->getInstance(), window::window_size_callback);
 
         // 初始化 ImGui
@@ -87,15 +75,6 @@ namespace opengl
         glm::mat4 projection =
                 glm::perspective(glm::radians(45.0f), (float)opengl::window::getWidth() / (float)opengl::window::getHeight(), camera->getNearPlane(), camera->getFarPlane());
         camera->setProspectiveMatrix(projection);
-        // 设置天空盒
-        {
-            camera->setSkyboxPath("Assets/Materials/skybox/"); // 设置默认天空盒路径
-            Shader *skyboxShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Advanced/Skybox/skybox.vert"),
-                                            FileSystem::getPath("src/LearnOpenGL/Advanced/Skybox/skybox.frag"));
-            camera->setSkyboxShader(skyboxShader); // 设置天空盒着色器
-            camera->loadSkyBox(); // 加载天空盒纹理
-            camera->prepareSkybox(); // 准备天空盒
-        }
         // 设置全屏四边形
         {
             Shader *fullScreenShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Advanced/screen.vert"),
@@ -105,21 +84,6 @@ namespace opengl
             camera->genScreenFrameBuffer(); // 创建帧缓冲，包括颜色、深度、模板缓冲
 
             camera->genDisplayFrameBuffer(); // 创建显示用帧缓冲
-
-            Shader* blurShader = new Shader(FileSystem::getPath("src/LearnOpenGL/AdvancedLighting/Shaders/GaussianBlur/gaussian_blur.vert"),
-                                      FileSystem::getPath("src/LearnOpenGL/AdvancedLighting/Shaders/GaussianBlur/gaussian_blur.frag"));
-            camera->setBlurShader(blurShader); // 设置高斯模糊着色器
-            camera->genPingPongFrameBuffer(); // 创建ping-pong帧缓冲，用于后处理
-
-            Shader* gBufferShader = new Shader(FileSystem::getPath("src/LearnOpenGL/AdvancedLighting/Shaders/GBuffer/gbuffer.vert"),
-                                        FileSystem::getPath("src/LearnOpenGL/AdvancedLighting/Shaders/GBuffer/gbuffer.frag"));
-            camera->setGBufferShader(gBufferShader); // 设置GBuffer着色器
-            camera->genGBufferFrameBuffer(); // 创建GBuffer帧缓冲
-
-            Shader* ssaoShader = new Shader(FileSystem::getPath("src/LearnOpenGL/AdvancedLighting/Shaders/SSAO/ssao.vert"),
-                                        FileSystem::getPath("src/LearnOpenGL/AdvancedLighting/Shaders/SSAO/ssao.frag"));
-            camera->setSSAOShader(ssaoShader); // 设置SSAO着色器
-            camera->genSSAOFBO(); // 创建SSAO帧缓冲
         }
         // 准备sprite的quad顶点数据
         camera->prepareQuadVAO();
@@ -151,7 +115,7 @@ namespace opengl
         return true;
     }
 
-    void system::update(const std::function<void()>& func)
+    void Game::update(const std::function<void()>& func)
     {
         if (glfwGetKey(window->getInstance(), GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
@@ -160,16 +124,27 @@ namespace opengl
         }
 
         window->preUpdate(); // 清空缓冲区，并处理事件
-        camera->update(getDeltaTime()); // 更新相机位置
-        camera->updateViewProjectionMatrix(); // 更新相机的视图和投影矩阵
+        // camera->update(getDeltaTime()); // 更新相机位置
+        // camera->updateViewProjectionMatrix(); // 更新相机的视图和投影矩阵
         calculateFPS(); // 计算FPS
 
         camera->bindScreenFrameBuffer(); // 绑定相机的帧缓冲进行渲染
 
+        for (auto& scenePair : scenes)
+        {
+            Scene* scene = scenePair.second;
+            for (auto& object : scene->getObjects())
+            {
+                if (object->getRenderer())
+                {
+                    object->getRenderer()->Draw();
+                }
+            }
+        }
+
         func();
 
-        // camera->drawSkybox();
-        camera->drawPingPongFrameBuffer(); // 绘制高斯模糊后的图像到相机帧缓冲
+        // camera->drawPingPongFrameBuffer(); // 绘制高斯模糊后的图像到相机帧缓冲
         camera->drawFullScreen(true); // 绘制全屏四边形，将相机帧缓冲内容显示到屏幕上
 
 
@@ -199,19 +174,6 @@ namespace opengl
             ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
             {
-                // 创建一个简单的 ImGui 窗口来显示信息
-                ImGui::Begin("Info");
-                ImGui::Text("FPS: %.1f", fps);
-                ImGui::Checkbox("Draw Skybox", &drawSkyBox);
-                ImGui::Checkbox("Use BlinnPhong", &useBlinnPhong);
-                ImGui::Checkbox("Use HDR", &useHDR);
-                ImGui::Checkbox("Deferred Lighting", &deferredLighting);
-                if (deferredLighting)
-                    ImGui::Checkbox("Use SSAO", &useSSAO);
-                ImGui::Checkbox("Use IBL", &useIBL);
-                ImGui::Checkbox("Use Specular IBL", &useSpecularIBL);
-                ImGui::End();
-
                 // 创建分屏显示窗口
                 ImGui::Begin("Render View");
 
@@ -243,7 +205,7 @@ namespace opengl
 
             // 结束主停靠空间窗口
             ImGui::End();
-            
+
             // 渲染 ImGui 绘制数据
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -252,35 +214,41 @@ namespace opengl
         window->postUpdate(); // 交换缓冲区
     }
 
-    window *system::getWindow()
+    window *Game::getWindow()
     {
-        if (!window) return Game::getInstance()->getWindow();
         return window;
     }
 
-    void system::setWindow(class window* target)
+    void Game::setWindow(class window* target)
     {
-        window = target;
+        this->window = target;
     }
 
-    camera* system::getCamera()
+    camera* Game::getCamera()
     {
-        if (!camera) return Game::getInstance()->getCamera();
         return camera;
     }
 
-    void system::setCamera(class camera *camera)
+    void Game::setCamera(class camera *camera)
     {
-        system::camera = camera;
+        this->camera = camera;
     }
 
+    Scene* Game::getScene(const std::string& name)
+    {
+        if (scenes.find(name) == scenes.end())
+        {
+            scenes[name] = new Scene();
+        }
+        return scenes[name];
+    }
 
-    void system::close()
+    void Game::close()
     {
         window->close();
     }
 
-    void system::clear()
+    void Game::clear()
     {
         // 在程序结束时清理 ImGui
         ImGui_ImplOpenGL3_Shutdown();
@@ -291,7 +259,7 @@ namespace opengl
         glfwTerminate();
     }
 
-    float system::getDeltaTime()
+    float Game::getDeltaTime()
     {
         if (lastFrameTime < 0)
         {
@@ -306,12 +274,12 @@ namespace opengl
         return deltaTime;
     }
 
-    bool system::systemShouldEnd()
+    bool Game::systemShouldEnd()
     {
         return glfwWindowShouldClose(window->getInstance());
     }
 
-    void system::calculateFPS()
+    void Game::calculateFPS()
     {
         double currentTime = glfwGetTime();
         frameCount++;

@@ -1751,3 +1751,13 @@ GLfloat vertices[6][4] = {
 #### SDF绘制字体
 
 我们可以将字体转成SDF的图，然后在着色器中我们设置阈值，这样就能自然地绘制出字体了，也能很方便地绘制模糊、描边等效果
+
+### 使用OpenGL写一个打砖块小游戏
+
+#### 游戏运行框架
+
+![game流程](E:\code\Learn\opengl\assets\game流程-1762012754931-2.jpg)
+
+#### 类图设计
+
+![game系统设计类图](E:\code\Learn\opengl\assets\game系统设计类图.jpg) 

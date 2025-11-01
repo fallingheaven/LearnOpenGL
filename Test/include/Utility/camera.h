@@ -10,6 +10,7 @@
 #include <filesystem.hpp>
 #include <functional>
 #include <utility.h>
+#include <game.h>
 
 
 enum Camera_Movement { FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN};
@@ -21,6 +22,9 @@ namespace opengl
     public:
         glm::vec3 Position{}, Front, Up{}, Right{}, WorldUp{};
         float Yaw, Pitch, MovementSpeed, MouseSensitivity, Zoom;
+
+        GLuint quadVAO{}, quadVBO{};
+        void prepareQuadVAO();
 
         explicit camera(glm::vec3 pos = glm::vec3(0, 0, 3), glm::vec3 up = glm::vec3(0, 1, 0), float yaw = -90,
                         float pitch   = 0);
