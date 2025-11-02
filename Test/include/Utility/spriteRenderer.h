@@ -19,7 +19,8 @@ namespace opengl
 
         Texture() : ID(0), Type(GL_TEXTURE_2D)
         {
-            width = height = 0;
+            width = 0;
+            height = 0;
             internalFormat = GL_RGB;
             format = GL_RGB;
             dataType = GL_UNSIGNED_BYTE;
@@ -37,9 +38,12 @@ namespace opengl
     class Renderer
     {
     public:
+        virtual ~Renderer() = default;
+
         Renderer(Shader* shader)
         {
             this->shader = shader;
+            this->owner = nullptr;
         }
         void virtual Draw();
         Object *owner;
@@ -54,7 +58,6 @@ namespace opengl
         {
             this->texture = texture;
         };
-        ~SpriteRenderer() = default;
 
         void Draw() override;
     private:

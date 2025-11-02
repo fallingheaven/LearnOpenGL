@@ -66,6 +66,9 @@ namespace opengl
         void setSSAOShader(Shader* shader) { ssaoShader = shader; }
         unsigned int getSSAOTex() const { return ssaoColorBuffer; }
 
+        void setSpriteShader(Shader* shader) { spriteShader = shader; }
+        Shader* getSpriteShader() const { return spriteShader; }
+
         void bindUniformBlock(unsigned int bindingPoint, GLsizei blockSize);
 
 
@@ -115,6 +118,8 @@ namespace opengl
         unsigned int ssaoFBO{}, ssaoColorBuffer{}, ssaoNoiseTex{};
         std::vector<glm::vec3> ssaoKernel{};
         Shader* ssaoShader;
+
+        Shader* spriteShader;
 
         unsigned int ubo[5]{}; // 预设5个uniform缓冲区对象binding从0到4，其中自由使用后四个，第一个管理投影和视图矩阵
 

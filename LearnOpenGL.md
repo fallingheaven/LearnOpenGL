@@ -1761,3 +1761,19 @@ GLfloat vertices[6][4] = {
 #### 类图设计
 
 ![game系统设计类图](E:\code\Learn\opengl\assets\game系统设计类图.jpg) 
+
+#### 关卡
+
+将`GameLevel`加入
+
+![game流程（加关卡）](E:\code\Learn\opengl\assets\game流程（加关卡）.jpg)
+
+ ![game系统设计类图（加关卡）](E:\code\Learn\opengl\assets\game系统设计类图（加关卡）.jpg)
+
+![image-20251102161516648](E:\code\Learn\opengl\assets\image-20251102161516648.png) 
+
+#### 一些bug
+
+glTexImage2D段错误，是因为数据格式使用了RGBA，但对应png只有RGB
+
+使用面剔除，如果需要透视/正交矩阵上下颠倒，面剔除模式也要颠倒，或者暂时禁用

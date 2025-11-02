@@ -9,13 +9,15 @@
 
 namespace opengl
 {
+    class GameLevel;
     class Object;
     class Scene;
+    class Texture;
 
     class Game
     {
     public:
-        ~Game();
+        ~Game() = default;
 
         static Game* getInstance() { if (!instance) instance = new Game(); return instance;}
 
@@ -32,10 +34,34 @@ namespace opengl
         float getDeltaTime();
         bool systemShouldEnd();
 
+        void loadLevel(GameLevel* level);
+        void loadLevel(int level);
+        void loadLevel();
+
+        enum GameState
+        {
+            GAME_ACTIVE,
+            GAME_MENU,
+            GAME_WIN
+        };
+        GameState State = GAME_ACTIVE;
+
+        Texture* blockTex;
+        Texture* solidBlockTex;
+        Texture* backgroundTex;
+        Texture* ballTex;
     private:
         Game() { init(); };
         static Game* instance;
         std::map<std::string, Scene*> scenes;
+        std::vector<GameLevel*> levels;
+        int currentLevelIndex = 0;
+
+        Object* player = nullptr;
+        // 初始化挡板的大小
+        const glm::vec2 PLAYER_SIZE = glm::vec2(100, 20);
+        // 初始化当班的速率
+        const GLfloat PLAYER_VELOCITY = 500.0f;
 
         class window* window = nullptr;
         class camera* camera = nullptr;
@@ -49,7 +75,23 @@ namespace opengl
 
         void setWindow(class window* target);
         void setCamera(class camera* camera);
+
+        void processInput(float dt);
     };
 
+    class GameLevel
+    {
+    public:
+        std::vector<Object*> objects;
 
+        GameLevel() = default;
+        ~GameLevel() = default;
+
+        void load(std::string levelFile, GLuint levelWidth, GLuint levelHeight);
+        bool isCompleted();
+    private:
+        void init(std::vector<std::vector<GLuint>> tileData);
+        GLuint levelWidth;
+        GLuint levelHeight;
+    };
 }

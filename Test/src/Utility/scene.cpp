@@ -7,6 +7,7 @@ namespace opengl
     Scene::~Scene() = default;
 
     void Scene::addObject(Object *obj) {
+        obj->setScene(this);
         objects.push_back(obj);
     }
 
@@ -15,11 +16,24 @@ namespace opengl
         delete obj;
     }
 
+    void Scene::clearObjects()
+    {
+        objects.clear();
+    }
+
     std::list<Object*>& Scene::getObjects() {
         return objects;
     }
 
     // Object 类实现
+    Object::Object()
+    {
+        this->scene = nullptr;
+        this->transform = Transform();
+
+        this->renderer = new SpriteRenderer(nullptr, nullptr);
+        this->color = glm::vec3(1.0f, 1.0f, 1.0f);
+    }
     Object::Object(Scene* scene)
     {
         this->scene = scene;
@@ -28,7 +42,17 @@ namespace opengl
         this->transform = Transform();
 
         this->renderer = new SpriteRenderer(nullptr, nullptr);
+        this->color = glm::vec3(1.0f, 1.0f, 1.0f);
     }
+    Object::Object(Transform transform, glm::vec3 color)
+    {
+        this->scene = nullptr;
+        this->transform = transform;
+
+        this->renderer = new SpriteRenderer(nullptr, nullptr);
+        this->color = color;
+    }
+
     Object::~Object()
     {
         scene->removeObject(this);

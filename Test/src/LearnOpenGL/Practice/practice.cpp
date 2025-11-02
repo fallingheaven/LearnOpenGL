@@ -18,14 +18,16 @@ int main()
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     }
 
-    auto testObj = new Object(gameInstance->getScene());
-    testObj->setPosition(glm::vec3(400, 400, 0));
-    testObj->setScale(glm::vec3(100, 100, 1));
-    auto spriteShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.vert"),
-                                   FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.frag"));
-    auto texture = new opengl::Texture();
-    texture->init(FileSystem::getPath("Assets/Materials/marble.jpg"), GL_RGB16, GL_RGB, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
-    testObj->setRenderer(new SpriteRenderer(spriteShader, texture));
+    gameInstance->loadLevel(0);
+
+    // auto testObj = new Object(gameInstance->getScene());
+    // testObj->setPosition(glm::vec3(400, 400, 0));
+    // testObj->setScale(glm::vec3(100, 100, 1));
+    // auto spriteShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.vert"),
+    //                                FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.frag"));
+    // auto texture = new opengl::Texture();
+    // texture->init(FileSystem::getPath("Assets/Materials/marble.jpg"), GL_RGB16, GL_RGB, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
+    // testObj->setRenderer(new SpriteRenderer(spriteShader, texture));
 
     while (!gameInstance->systemShouldEnd())
     {

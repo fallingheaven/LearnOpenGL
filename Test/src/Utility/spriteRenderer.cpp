@@ -51,9 +51,10 @@ namespace opengl
         shader->use();
         shader->setInt("image", 0);
         shader->setMat4("model", owner->transform.getModelMatrix());
+        shader->setVec3("spriteColor", owner->color);
         float width = Game::getInstance()->getWindow()->getWidth();
         float height = Game::getInstance()->getWindow()->getHeight();
-        shader->setMat4("orthoProjection", glm::ortho(0.0f, width, 0.0f, height, -1.0f, 1.0f));
+        shader->setMat4("orthoProjection", glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f));
 
         // 绘制四边形
         glBindVertexArray(Game::getInstance()->getCamera()->quadVAO);

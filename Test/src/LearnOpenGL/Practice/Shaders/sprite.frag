@@ -4,8 +4,11 @@ out vec4 FragColor;
 in vec2 TexCoords;
 
 uniform sampler2D image;
+uniform vec3 spriteColor;
 
 void main()
 {
-    FragColor = texture(image, TexCoords);
+    vec4 texColor = texture(image, TexCoords);
+
+    FragColor = vec4(texColor.rgb * spriteColor, texColor.a);
 }
