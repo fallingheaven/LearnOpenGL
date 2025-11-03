@@ -8,6 +8,7 @@ namespace opengl
 
     void Scene::addObject(Object *obj) {
         obj->setScene(this);
+        obj->isDestroyed = false;
         objects.push_back(obj);
     }
 

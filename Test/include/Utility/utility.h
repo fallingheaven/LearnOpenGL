@@ -29,8 +29,21 @@ namespace Utility
     std::vector<glm::vec3> genSSAOKernel(int kernelSize); // 生成SSAO采样核
     unsigned int genSSAONoiseTexture(int texSize);// 生成单位半球随机向量纹理
 
-    bool checkCollisionAABB(glm::vec3 pos1, glm::vec3 size1, glm::vec3 pos2, glm::vec3 size2); // 轴对齐包围盒碰撞检测
-    bool checkCollisionAABB(glm::vec3 pos1, float radius, glm::vec3 pos2, glm::vec3 size2); // 轴对齐包围盒与圆形碰撞检测
+    enum Direction {
+        UP,
+        RIGHT,
+        DOWN,
+        LEFT
+    };
+    struct Collision
+    {
+        bool isCollided;
+        Direction collisionDir;
+        glm::vec2 difference; // 碰撞时的差矢量，用于回退位置，防止重叠
+    };
+    Collision checkCollisionAABB(glm::vec3 pos1, glm::vec3 size1, glm::vec3 pos2, glm::vec3 size2); // 轴对齐包围盒碰撞检测
+    Collision checkCollisionAABB(glm::vec3 pos1, float radius, glm::vec3 pos2, glm::vec3 size2); // 轴对齐包围盒与圆形碰撞检测
+    Direction VectorDirection(glm::vec2 target);
 
     void APIENTRY glDebugOutput(GLenum source, GLenum type, unsigned int id, GLenum severity,
                             GLsizei length, const char *message, const void *userParam); // OpenGL调试输出

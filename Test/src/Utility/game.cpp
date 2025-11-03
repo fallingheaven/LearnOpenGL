@@ -122,7 +122,7 @@ namespace opengl
             this->levels.push_back(two);
             this->levels.push_back(three);
             this->levels.push_back(four);
-            this->currentLevelIndex = 1;
+            this->currentLevelIndex = 0;
 
             auto playerTex = new Texture(); playerTex->init(FileSystem::getPath("Assets/Materials/paddle.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
             player = new Object();
@@ -178,10 +178,22 @@ namespace opengl
         }
 
         window->preUpdate(); // 清空缓冲区，并处理事件
+
+        if (ball->getPosition().y > getWindow()->getHeight())
+        {
+            loadLevel();
+            return;
+        }
+
+        processCollisions(); // 处理碰撞检测
+
         float dt = getDeltaTime();
         processInput(dt); // 处理输入
-        ball->move(dt); // 移动小球
-        processCollisions(); // 处理碰撞检测
+        if (!ball->active)
+            ball->transform.position.x = player->getPosition().x + player->getScale().x / 2 - ball->getScale().x / 2;
+        else
+            ball->move(dt); // 移动小球
+
         // camera->update(getDeltaTime()); // 更新相机位置
         // camera->updateViewProjectionMatrix(); // 更新相机的视图和投影矩阵
         calculateFPS(); // 计算FPS
@@ -362,6 +374,7 @@ namespace opengl
         {
             scene->addObject(object);
         }
+        resetPlayer();
         scene->addObject(player);
         scene->addObject(ball);
     }
@@ -376,6 +389,7 @@ namespace opengl
         {
             scene->addObject(object);
         }
+        resetPlayer();
         scene->addObject(player);
         scene->addObject(ball);
     }
@@ -392,6 +406,7 @@ namespace opengl
         {
             scene->addObject(object);
         }
+        resetPlayer();
         scene->addObject(player);
         scene->addObject(ball);
     }
@@ -429,9 +444,9 @@ namespace opengl
 
             if (object == player)
             {
-                bool collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
+                auto collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
                                                             player->getPosition(), player->getScale());
-                if (collision)
+                if (collision.isCollided)
                 {
                     // 计算碰撞点的相对位置
                     GLfloat centerBoard = player->getPosition().x + player->getScale().x / 2;
@@ -447,18 +462,48 @@ namespace opengl
                 continue;
             }
 
-            bool collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
+            auto collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
                                                         object->getPosition(), object->getScale());
-            if (collision)
+            if (collision.isCollided)
             {
                 if (object->isDestroyed) continue;
-                if (object->isSolid) continue;
-                std::cout << "Collision detected with object at position: "
-                          << object->getPosition().x << ", " << object->getPosition().y << std::endl;
-                object->Destroy();
-                delete object;
+
+                std::cout << collision.difference.x << ", " << collision.difference.y << std::endl;
+
+                if (collision.collisionDir & (Utility::UP | Utility::DOWN))
+                {
+                    ball->velocity.y = -ball->velocity.y; // 反转Y轴速度
+                    // 根据碰撞方向调整位置，防止粘连
+                    GLfloat penetration = ball->radius - abs(collision.difference.y);
+                    if (collision.collisionDir == Utility::UP)
+                        ball->transform.position.y += penetration;
+                    else
+                        ball->transform.position.y -= penetration;
+                }
+                else
+                {
+                    ball->velocity.x = -ball->velocity.x; // 反转X轴速度
+                    // 根据碰撞方向调整位置，防止粘连
+                    GLfloat penetration = ball->radius - abs(collision.difference.x);
+                    if (collision.collisionDir == Utility::RIGHT)
+                        ball->transform.position.x += penetration;
+                    else
+                        ball->transform.position.x -= penetration;
+                }
+
+                if (!object->isSolid)
+                {
+                    object->Destroy();
+                    // delete object; // 这里delete的话，后面重新加载的时候也不会显示了
+                }
             }
         }
+    }
+
+    void Game::resetPlayer()
+    {
+        player->setPosition(glm::vec3(getWindow()->getWidth() / 2 - player->getScale().x / 2, getWindow()->getHeight() - player->getScale().y - 10.0f, 0.0f));
+        ball->reset(glm::vec2(getWindow()->getWidth() / 2 - BALL_RADIUS, player->getPosition().y - BALL_RADIUS * 2), INITIAL_BALL_VELOCITY);
     }
 
 

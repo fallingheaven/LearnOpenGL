@@ -67,6 +67,7 @@ namespace opengl
         BallObject* ball = nullptr;
         const GLfloat BALL_RADIUS = 12.5f;
         const glm::vec2 INITIAL_BALL_VELOCITY = glm::vec2(100.0f, -350.0f);
+        // const glm::vec2 INITIAL_BALL_VELOCITY = glm::vec2(150.0f, -150.0f);
 
         class window* window = nullptr;
         class camera* camera = nullptr;
@@ -84,6 +85,8 @@ namespace opengl
         void processInput(float dt);
 
         void processCollisions();
+
+        void resetPlayer();
     };
 
     class GameLevel

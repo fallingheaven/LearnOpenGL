@@ -1772,8 +1772,80 @@ GLfloat vertices[6][4] = {
 
 ![image-20251102161516648](E:\code\Learn\opengl\assets\image-20251102161516648.png) 
 
+#### 碰撞处理
+
+在球碰到屏幕边缘，翻转x或y轴速度
+
+对于球和砖块或挡板的碰撞，通过AABB来判断，简单的做法是只使用边界检测
+
+```c++
+bool collisionX = pos1.x + size1.x >= pos2.x &&
+                      pos2.x + size2.x >= pos1.x;
+bool collisionY = pos1.y + size1.y >= pos2.y &&
+                  pos2.y + size2.y >= pos1.y;
+return collisionX && collisionY;
+```
+
+但对于球来讲，这种做法并不精确，这里先算出球心到矩形的最近点，计算球心到这个点的距离，小于半径就是碰到了
+
+<img src="E:\code\Learn\opengl\assets\image-20251103205632561.png" alt="image-20251103205632561" style="zoom:50%;" /> 
+
+```c++
+glm::vec2 aabb_center(
+    pos2.x + size2.x / 2,
+    pos2.y + size2.y / 2
+);
+glm::vec2 circle_center = glm::vec2(pos1.x + radius, pos1.y + radius);
+// 获取两个中心的差矢量
+glm::vec2 difference = circle_center - aabb_center;
+glm::vec2 clamped = glm::clamp(difference, -aabb_half_extents, aabb_half_extents);
+// AABB_center加上clamped这样就得到了碰撞箱上距离圆最近的点closest
+glm::vec2 closest = aabb_center + clamped;
+// 获得圆心center和最近点closest的矢量并判断是否 length <= radius
+difference = closest - circle_center;
+auto direction = Utility::VectorDirection(difference);
+
+return {glm::length(difference) < radius + 1.0f, direction, difference};
+```
+
+ 这里的`VectorDirection`是通过点乘来判断碰撞的方向最接近哪个方向（不过对于长方形似乎不是很准确），以此判断小球的反弹方向（翻转x或y轴速度）
+
+```c++
+Utility::Direction Utility::VectorDirection(glm::vec2 target)
+{
+    glm::vec2 compass[] = {
+        glm::vec2(0.0f, 1.0f),  // 上
+        glm::vec2(1.0f, 0.0f),  // 右
+        glm::vec2(0.0f, -1.0f), // 下
+        glm::vec2(-1.0f, 0.0f)  // 左
+    };
+    GLfloat max = 0.0f;
+    GLuint best_match = -1;
+    for (GLuint i = 0; i < 4; i++)
+    {
+        GLfloat dot_product = glm::dot(glm::normalize(target), compass[i]);
+        if (dot_product > max)
+        {
+            max = dot_product;
+            best_match = i;
+        }
+    }
+    return (Direction)best_match;
+}
+```
+
+另外，以免下一帧碰撞检测还在这个砖块中，进行一个小幅度的偏移
+
+```c++
+GLfloat penetration = ball->radius - abs(collision.difference.y);
+if (collision.collisionDir == Utility::UP)
+    ball->transform.position.y += penetration;
+else
+    ball->transform.position.y -= penetration;
+```
+
 #### 一些bug
 
-glTexImage2D段错误，是因为数据格式使用了RGBA，但对应png只有RGB
+glTexImage2D段错误，是因为数据格式使用了RGBA，但对应`png`只有RGB
 
 使用面剔除，如果需要透视/正交矩阵上下颠倒，面剔除模式也要颠倒，或者暂时禁用
