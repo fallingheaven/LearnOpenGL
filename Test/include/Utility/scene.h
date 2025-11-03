@@ -54,16 +54,6 @@ namespace opengl
             model = glm::rotate(model, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
             model = glm::scale(model, scale);
 
-            // std::cout << "Model Matrix: " << std::endl;
-            // for (int i = 0; i < 4; ++i)
-            // {
-            //     for (int j = 0; j < 4; ++j)
-            //     {
-            //         std::cout << model[j][i] << " ";
-            //     }
-            //     std::cout << std::endl;
-            // }std::cout << std::endl;
-
             return model;
         }
     };
@@ -74,7 +64,7 @@ namespace opengl
         Object();
         Object(Scene *scene);
         Object(Transform transform, glm::vec3 color);
-        ~Object();
+        virtual ~Object();
 
         void setRenderer(Renderer *renderer);
         Renderer* getRenderer() { return renderer; }
@@ -88,13 +78,30 @@ namespace opengl
 
         void setScene(Scene *scene) { this->scene = scene; }
 
-        void Destroy() { scene->removeObject(this); }
+        void Destroy() { scene->removeObject(this); isDestroyed = true; }
 
-        bool isDestroyed = true;
+        bool isDestroyed = false;
+        bool isSolid = false;
         glm::vec3 color;
         Transform transform;
     private:
         Scene *scene;
         Renderer *renderer;
+    };
+
+    class BallObject : public Object
+    {
+    public:
+        bool active = false;
+        float radius = 12.5f;
+
+        BallObject() : Object(), active(false), radius(12.5f) {}
+        BallObject(Scene *scene) : Object(scene), active(false), radius(12.5f) {}
+        BallObject(Transform transform, glm::vec3 color) : Object(transform, color), active(false), radius(12.5f) {}
+
+        glm::vec2 velocity = glm::vec2(0.0f, 0.0f);
+
+        void move(float dt);
+        void reset(glm::vec2 position, glm::vec2 velocity);
     };
 }

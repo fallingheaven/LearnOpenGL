@@ -286,6 +286,35 @@ unsigned int Utility::TextureFromMemory(const aiTexture* texture, bool gamma)
     return textureID;
 }
 
+bool Utility::checkCollisionAABB(glm::vec3 pos1, glm::vec3 size1, glm::vec3 pos2, glm::vec3 size2)
+{
+    bool collisionX = pos1.x + size1.x >= pos2.x &&
+                      pos2.x + size2.x >= pos1.x;
+    bool collisionY = pos1.y + size1.y >= pos2.y &&
+                      pos2.y + size2.y >= pos1.y;
+
+    return collisionX && collisionY;
+}
+
+bool Utility::checkCollisionAABB(glm::vec3 pos1, float radius, glm::vec3 pos2, glm::vec3 size2)
+{
+    glm::vec2 aabb_half_extents(size2.x / 2, size2.y / 2);
+    glm::vec2 aabb_center(
+        pos2.x + aabb_half_extents.x,
+        pos2.y + aabb_half_extents.y
+    );
+    // 获取两个中心的差矢量
+    glm::vec2 difference = glm::vec2(pos1.x, pos1.y) - aabb_center;
+    glm::vec2 clamped = glm::clamp(difference, -aabb_half_extents, aabb_half_extents);
+    // AABB_center加上clamped这样就得到了碰撞箱上距离圆最近的点closest
+    glm::vec2 closest = aabb_center + clamped;
+    // 获得圆心center和最近点closest的矢量并判断是否 length <= radius
+    difference = closest - glm::vec2(pos1.x, pos1.y);
+    return glm::length(difference) < radius;
+}
+
+
+
 void Utility::glDebugOutput(GLenum source, GLenum type, unsigned int id, GLenum severity, GLsizei length, const char *message, const void *userParam)
 {
     // 忽略一些不重要的错误/警告代码

@@ -11,6 +11,7 @@ namespace opengl
 {
     class GameLevel;
     class Object;
+    class BallObject;
     class Scene;
     class Texture;
 
@@ -60,8 +61,12 @@ namespace opengl
         Object* player = nullptr;
         // 初始化挡板的大小
         const glm::vec2 PLAYER_SIZE = glm::vec2(100, 20);
-        // 初始化当班的速率
+        // 初始化挡板的速率
         const GLfloat PLAYER_VELOCITY = 500.0f;
+
+        BallObject* ball = nullptr;
+        const GLfloat BALL_RADIUS = 12.5f;
+        const glm::vec2 INITIAL_BALL_VELOCITY = glm::vec2(100.0f, -350.0f);
 
         class window* window = nullptr;
         class camera* camera = nullptr;
@@ -77,6 +82,8 @@ namespace opengl
         void setCamera(class camera* camera);
 
         void processInput(float dt);
+
+        void processCollisions();
     };
 
     class GameLevel

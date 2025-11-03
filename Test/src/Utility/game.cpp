@@ -130,6 +130,14 @@ namespace opengl
             player->setPosition(glm::vec3(getWindow()->getWidth() / 2 - player->getScale().x / 2, getWindow()->getHeight() - player->getScale().y - 10.0f, 0.0f));
             auto playerRenderer = new SpriteRenderer(spriteShader, playerTex);
             player->setRenderer(playerRenderer);
+
+            ball = new BallObject();
+            ball->setScale(glm::vec3(BALL_RADIUS * 2, BALL_RADIUS * 2, 1));
+            ball->setPosition(glm::vec3(getWindow()->getWidth() / 2 - BALL_RADIUS, player->getPosition().y - BALL_RADIUS * 2, 0.0f));
+            ball->velocity = INITIAL_BALL_VELOCITY;
+            ball->radius = BALL_RADIUS;
+            auto ballRenderer = new SpriteRenderer(spriteShader, ballTex);
+            ball->setRenderer(ballRenderer);
         }
 
         // OpenGL 全局状态设置
@@ -170,7 +178,10 @@ namespace opengl
         }
 
         window->preUpdate(); // 清空缓冲区，并处理事件
-        processInput(getDeltaTime()); // 处理输入
+        float dt = getDeltaTime();
+        processInput(dt); // 处理输入
+        ball->move(dt); // 移动小球
+        processCollisions(); // 处理碰撞检测
         // camera->update(getDeltaTime()); // 更新相机位置
         // camera->updateViewProjectionMatrix(); // 更新相机的视图和投影矩阵
         calculateFPS(); // 计算FPS
@@ -181,11 +192,11 @@ namespace opengl
         glDisable(GL_CULL_FACE);
         for (auto& scenePair : scenes)
         {
-            // std::cout << "Rendering scene: " << scenePair.first << std::endl;
             Scene* scene = scenePair.second;
-            // std::cout << "Number of objects in scene: " << scene->getObjects().size() << std::endl;
             for (auto& object : scene->getObjects())
             {
+                if (object->isDestroyed) continue;
+                // std::cout << object->isDestroyed << ' ' << object->getRenderer() << std::endl;
                 if (object->getRenderer())
                 {
                     object->getRenderer()->Draw();
@@ -352,6 +363,7 @@ namespace opengl
             scene->addObject(object);
         }
         scene->addObject(player);
+        scene->addObject(ball);
     }
 
     void Game::loadLevel(int level)
@@ -365,6 +377,7 @@ namespace opengl
             scene->addObject(object);
         }
         scene->addObject(player);
+        scene->addObject(ball);
     }
 
     void Game::loadLevel()
@@ -380,6 +393,7 @@ namespace opengl
             scene->addObject(object);
         }
         scene->addObject(player);
+        scene->addObject(ball);
     }
 
     void Game::processInput(GLfloat dt)
@@ -398,8 +412,55 @@ namespace opengl
                 if (player->transform.position.x <= getWindow()->getWidth() - player->transform.scale.x)
                     player->transform.position.x += velocity;
             }
+            if (glfwGetKey(getWindow()->getInstance(),GLFW_KEY_SPACE) == GLFW_PRESS)
+            {
+                ball->active = true;
+            }
         }
     }
+
+    void Game::processCollisions()
+    {
+        for (auto& object : getScene("default")->getObjects())
+        {
+            // 处理碰撞检测和响应
+            if (object == ball)
+                continue;
+
+            if (object == player)
+            {
+                bool collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
+                                                            player->getPosition(), player->getScale());
+                if (collision)
+                {
+                    // 计算碰撞点的相对位置
+                    GLfloat centerBoard = player->getPosition().x + player->getScale().x / 2;
+                    GLfloat distance = (ball->getPosition().x + ball->radius) - centerBoard;
+                    GLfloat percentage = distance / (player->getScale().x / 2);
+                    // 根据碰撞点调整小球的速度
+                    GLfloat strength = 2.0f;
+                    glm::vec2 oldVelocity = ball->velocity;
+                    ball->velocity.x = INITIAL_BALL_VELOCITY.x * percentage * strength;
+                    ball->velocity.y = -1 * abs(ball->velocity.y);
+                    ball->velocity = glm::normalize(ball->velocity) * glm::length(oldVelocity);
+                }
+                continue;
+            }
+
+            bool collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
+                                                        object->getPosition(), object->getScale());
+            if (collision)
+            {
+                if (object->isDestroyed) continue;
+                if (object->isSolid) continue;
+                std::cout << "Collision detected with object at position: "
+                          << object->getPosition().x << ", " << object->getPosition().y << std::endl;
+                object->Destroy();
+                delete object;
+            }
+        }
+    }
+
 
 
     void GameLevel::load(std::string levelFile, GLuint levelWidth, GLuint levelHeight)
@@ -454,8 +515,8 @@ namespace opengl
                     Transform transform = Transform(glm::vec3(pos, 0.0f), glm::vec3(0.0f), glm::vec3(size, 1.0f));
                     Object* obj = new Object(transform, glm::vec3(0.8f, 0.8f, 0.7f));
                     obj->setRenderer(new SpriteRenderer(spriteShader, solidBlockTex));
+                    obj->isSolid = GL_TRUE;
 
-                    obj->isDestroyed = GL_TRUE;
                     this->objects.push_back(obj);
                 }
                 else if (tileData[y][x] > 1)
