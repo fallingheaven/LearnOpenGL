@@ -41,6 +41,8 @@ namespace opengl
         void prepareFullScreen();
         void genScreenFrameBuffer();
         void bindScreenFrameBuffer();
+        void genPostprocessingFrameBuffer(); // 后处理
+        void drawPostprocessing(Shader* shader);
         void genDisplayFrameBuffer();
         unsigned int getDisplayColorBufferTex() const { return displayColorBufferTex; }
         void drawFullScreen(bool renderToDisplayFBO = false);
@@ -107,6 +109,8 @@ namespace opengl
         unsigned int screenFBO{}, colorBufferTex[5]{}, depthStencilRBO{};
         // 显示用FBO
         unsigned int displayFBO{}, displayColorBufferTex{};
+        // 后处理用FBO，防止读写同一个colorTex导致花屏
+        unsigned int postprocessingFBO{}, postprocessingColorBufferTex{};
 
         // 用于bloom的ping-pong帧缓冲，循环高斯模糊
         unsigned int pingPongFBO[2]{}, pingPongColorBuffers[2]{};

@@ -1844,8 +1844,18 @@ else
     ball->transform.position.y -= penetration;
 ```
 
+#### 后处理效果
+
+就是另开一个FBO和Tex，然后将屏幕FBO的Tex作为输入，先写到这个后处理Tex上，再Blit到屏幕FBO的Tex中
+
+#### 道具 （TODO）
+
+
+
 #### 一些bug
 
 glTexImage2D段错误，是因为数据格式使用了RGBA，但对应`png`只有RGB
 
 使用面剔除，如果需要透视/正交矩阵上下颠倒，面剔除模式也要颠倒，或者暂时禁用
+
+不能将一个tex同时作为读写对象，后处理需要另外的tex，绑定screenTex（需要处理的屏幕纹理），draw后再blit到screenTex中

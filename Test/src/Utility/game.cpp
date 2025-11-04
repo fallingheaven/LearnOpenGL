@@ -93,6 +93,8 @@ namespace opengl
             camera->prepareFullScreen(); // 准备全屏四边形
             camera->genScreenFrameBuffer(); // 创建帧缓冲，包括颜色、深度、模板缓冲
 
+            camera->genPostprocessingFrameBuffer(); // 创建后处理用帧缓冲
+
             camera->genDisplayFrameBuffer(); // 创建显示用帧缓冲
         }
         // 准备sprite的quad顶点数据
@@ -101,6 +103,37 @@ namespace opengl
                                    FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.frag"));
         Shader *particleShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Particle/particle.vert"),
                                       FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Particle/particle.frag"));
+        postprocessingShader = new Shader (FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Postprocess/postprocess.vert"),
+                                          FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Postprocess/postprocess.frag"));
+        postprocessingShader->use();
+        float xOff = 1.0f / static_cast<float>(getWindow()->getWidth());
+        float yOff = 1.0f / static_cast<float>(getWindow()->getHeight());
+        std::vector<glm::vec2> offsets = {
+            { -xOff,  yOff  },  // top-left
+            {0.0f,  yOff  },  // top-center
+            {  xOff,  yOff  },  // top-right
+            { -xOff, 0.0f  },  // center-left
+            {0.0f, 0.0f  },  // center-center
+            {  xOff, 0.0f  },  // center - right
+            { -xOff, -yOff  },  // bottom-left
+            {0.0f, -yOff  },  // bottom-center
+            {  xOff, -yOff  }   // bottom-right
+        };
+        postprocessingShader->setVec2("offsets", offsets[0], 9);
+        GLint edge_kernel[9] = {
+            -1, -1, -1,
+            -1,  8, -1,
+            -1, -1, -1
+        };
+        postprocessingShader->setInt("edge_kernel", edge_kernel, 9);
+        GLfloat blur_kernel[9] = {
+            1.0 / 16, 2.0 / 16, 1.0 / 16,
+            2.0 / 16, 4.0 / 16, 2.0 / 16,
+            1.0 / 16, 2.0 / 16, 1.0 / 16
+        };
+        postprocessingShader->setFloat("blur_kernel", blur_kernel, 9);
+        postprocessingShader->setInt("scene", 0);
+
         camera->setSpriteShader(spriteShader);
 
         // // 绑定视图投影矩阵的统一接口块缓冲区
@@ -207,6 +240,17 @@ namespace opengl
             ball->move(dt); // 移动小球
         updateParticles(dt);
 
+        if (shakeTime > 0.0f)
+        {
+            shakeTime -= dt;
+            postprocessingShader->use();
+            postprocessingShader->setFloat("time", glfwGetTime());
+            if (shakeTime <= 0.0f)
+            {
+                postprocessingShader->setBool("shake", false);
+            }
+        }
+
         // camera->update(getDeltaTime()); // 更新相机位置
         // camera->updateViewProjectionMatrix(); // 更新相机的视图和投影矩阵
         calculateFPS(); // 计算FPS
@@ -222,6 +266,7 @@ namespace opengl
 
         func();
 
+        camera->drawPostprocessing(postprocessingShader); // 使用后处理着色器绘制相机帧缓冲内容
         // camera->drawPingPongFrameBuffer(); // 绘制高斯模糊后的图像到相机帧缓冲
         camera->drawFullScreen(true); // 绘制全屏四边形，将相机帧缓冲内容显示到屏幕上
 
@@ -493,6 +538,10 @@ namespace opengl
                     else
                         ball->transform.position.x -= penetration;
                 }
+
+                postprocessingShader->use();
+                postprocessingShader->setBool("shake", true);
+                shakeTime = 0.05f;
 
                 if (!object->isSolid)
                 {

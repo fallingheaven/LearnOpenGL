@@ -175,6 +175,16 @@ public:
         glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
     }
 
+    void setInt(const std::string& name, int *value, int count = 1) const
+    {
+        glUniform1iv(glGetUniformLocation(ID, name.c_str()), count, value);
+    }
+
+    void setFloat(const std::string& name, float *value, int count = 1) const
+    {
+        glUniform1fv(glGetUniformLocation(ID, name.c_str()), count, value);
+    }
+
     void setVec2(const std::string& name, const glm::vec2& value, int count = 1) const
     {
         glUniform2fv(glGetUniformLocation(ID, name.c_str()), count, &value[0]);

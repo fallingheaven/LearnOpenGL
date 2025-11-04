@@ -64,6 +64,10 @@ namespace opengl
         float particleSpawnTimer = 0.0f;
         const float spawnInterval = 0.05f;
 
+        unsigned int postprocessingFBO;
+        Shader* postprocessingShader = nullptr;
+        float shakeTime = 0.0f;
+
         Object* player = nullptr;
         // 初始化挡板的大小
         const glm::vec2 PLAYER_SIZE = glm::vec2(100, 20);
