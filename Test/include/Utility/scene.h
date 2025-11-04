@@ -63,7 +63,7 @@ namespace opengl
     public:
         Object();
         Object(Scene *scene);
-        Object(Transform transform, glm::vec3 color);
+        Object(Transform transform, glm::vec4 color);
         virtual ~Object();
 
         void setRenderer(Renderer *renderer);
@@ -82,7 +82,7 @@ namespace opengl
 
         bool isDestroyed = false;
         bool isSolid = false;
-        glm::vec3 color;
+        glm::vec4 color;
         Transform transform;
     private:
         Scene *scene;
@@ -97,11 +97,22 @@ namespace opengl
 
         BallObject() : Object(), active(false), radius(12.5f) {}
         BallObject(Scene *scene) : Object(scene), active(false), radius(12.5f) {}
-        BallObject(Transform transform, glm::vec3 color) : Object(transform, color), active(false), radius(12.5f) {}
+        BallObject(Transform transform, glm::vec4 color) : Object(transform, color), active(false), radius(12.5f) {}
 
         glm::vec2 velocity = glm::vec2(0.0f, 0.0f);
 
         void move(float dt);
         void reset(glm::vec2 position, glm::vec2 velocity);
+    };
+
+    class ParticleObject : public Object
+    {
+    public:
+        float life = 1.0f; // 当前生命周期
+        float initialLife = 1.0f; // 初始生命周期
+        glm::vec2 velocity = glm::vec2(0.0f, 0.0f);
+        ParticleObject() : Object(), life(0.0f), initialLife(1.0f) {}
+        ParticleObject(Scene *scene) : Object(scene), life(0.0f), initialLife(1.0f) {}
+        ParticleObject(Transform transform, glm::vec4 color) : Object(transform, color), life(0.0f), initialLife(1.0f) {}
     };
 }

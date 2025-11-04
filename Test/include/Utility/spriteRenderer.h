@@ -63,4 +63,17 @@ namespace opengl
     private:
         Texture *texture;
     };
+
+    class ParticleRenderer : public Renderer
+    {
+    public:
+        ParticleRenderer(Shader *shader, Texture* texture) : Renderer(shader)
+        {
+            this->texture = texture;
+        };
+
+        void Draw() override;
+    private:
+        Texture *texture;
+    };
 }

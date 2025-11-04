@@ -13,7 +13,7 @@ namespace opengl
     }
 
     void Scene::removeObject(Object *obj) {
-        objects.remove_if([&obj](const Object *o) { return &o == &obj; });
+        objects.remove_if([&obj](const Object *o) { return o == obj; });
     }
 
     void Scene::clearObjects()
@@ -32,7 +32,7 @@ namespace opengl
         this->transform = Transform();
 
         this->renderer = new SpriteRenderer(nullptr, nullptr);
-        this->color = glm::vec3(1.0f, 1.0f, 1.0f);
+        this->color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     }
     Object::Object(Scene* scene)
     {
@@ -42,9 +42,9 @@ namespace opengl
         this->transform = Transform();
 
         this->renderer = new SpriteRenderer(nullptr, nullptr);
-        this->color = glm::vec3(1.0f, 1.0f, 1.0f);
+        this->color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     }
-    Object::Object(Transform transform, glm::vec3 color)
+    Object::Object(Transform transform, glm::vec4 color)
     {
         this->scene = nullptr;
         this->transform = transform;

@@ -51,7 +51,27 @@ namespace opengl
         shader->use();
         shader->setInt("image", 0);
         shader->setMat4("model", owner->transform.getModelMatrix());
-        shader->setVec3("spriteColor", owner->color);
+        shader->setVec4("spriteColor", owner->color);
+        float width = Game::getInstance()->getWindow()->getWidth();
+        float height = Game::getInstance()->getWindow()->getHeight();
+        shader->setMat4("orthoProjection", glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f));
+
+        // 绘制四边形
+        glBindVertexArray(Game::getInstance()->getCamera()->quadVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+    }
+
+    void ParticleRenderer::Draw()
+    {
+        // 绑定纹理
+        texture->bind();
+
+        // 使用着色器
+        shader->use();
+        shader->setInt("image", 0);
+        shader->setVec2("offset", glm::vec2(owner->transform.position.x, owner->transform.position.y));
+        shader->setVec4("color", owner->color);
         float width = Game::getInstance()->getWindow()->getWidth();
         float height = Game::getInstance()->getWindow()->getHeight();
         shader->setMat4("orthoProjection", glm::ortho(0.0f, width, height, 0.0f, -1.0f, 1.0f));
@@ -62,3 +82,4 @@ namespace opengl
         glBindVertexArray(0);
     }
 }
+

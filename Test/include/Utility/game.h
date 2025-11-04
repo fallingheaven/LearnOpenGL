@@ -6,12 +6,14 @@
 #include <functional>
 #include <map>
 #include <scene.h>
+#include <cmath>
 
 namespace opengl
 {
     class GameLevel;
     class Object;
     class BallObject;
+    class ParticleObject;
     class Scene;
     class Texture;
 
@@ -51,12 +53,16 @@ namespace opengl
         Texture* solidBlockTex;
         Texture* backgroundTex;
         Texture* ballTex;
+        Texture* particleTex;
     private:
         Game() { init(); };
         static Game* instance;
         std::map<std::string, Scene*> scenes;
         std::vector<GameLevel*> levels;
         int currentLevelIndex = 0;
+        std::vector<ParticleObject*> particles;
+        float particleSpawnTimer = 0.0f;
+        const float spawnInterval = 0.05f;
 
         Object* player = nullptr;
         // 初始化挡板的大小
@@ -87,6 +93,10 @@ namespace opengl
         void processCollisions();
 
         void resetPlayer();
+
+        ParticleObject* getFirstUnusedParticle();
+        void updateParticles(float dt);
+        void drawScene(const char* sceneName);
     };
 
     class GameLevel
@@ -101,7 +111,7 @@ namespace opengl
         bool isCompleted();
     private:
         void init(std::vector<std::vector<GLuint>> tileData);
-        GLuint levelWidth;
-        GLuint levelHeight;
+        GLuint levelWidth{};
+        GLuint levelHeight{};
     };
 }

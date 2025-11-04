@@ -21,7 +21,8 @@ namespace opengl
         camera = new class camera();
 
         scenes = {
-            {"default", new Scene()}
+            {"default", new Scene()},
+            {"particles", new Scene()}
         };
 
         levels = {};
@@ -98,6 +99,8 @@ namespace opengl
         camera->prepareQuadVAO();
         Shader *spriteShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.vert"),
                                    FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.frag"));
+        Shader *particleShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Particle/particle.vert"),
+                                      FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Particle/particle.frag"));
         camera->setSpriteShader(spriteShader);
 
         // // 绑定视图投影矩阵的统一接口块缓冲区
@@ -109,6 +112,7 @@ namespace opengl
             solidBlockTex = new Texture();  solidBlockTex->init(FileSystem::getPath("Assets/Materials/block_solid.png"), GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
             backgroundTex = new Texture();  backgroundTex->init(FileSystem::getPath("Assets/Materials/background.jpg"), GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
             ballTex = new Texture();        ballTex->init(FileSystem::getPath("Assets/Materials/awesomeface.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
+            particleTex = new Texture();    particleTex->init(FileSystem::getPath("Assets/Materials/particle.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
 
             GLuint levelWidth = getWindow()->getWidth();
             GLuint levelHeight = getWindow()->getHeight() * 0.5;
@@ -138,6 +142,14 @@ namespace opengl
             ball->radius = BALL_RADIUS;
             auto ballRenderer = new SpriteRenderer(spriteShader, ballTex);
             ball->setRenderer(ballRenderer);
+
+            for (int i = 0; i < 500; i++)
+            {
+                auto p = new ParticleObject();
+                auto particleRenderer = new ParticleRenderer(particleShader, particleTex);
+                p->setRenderer(particleRenderer);
+                particles.push_back(p);
+            }
         }
 
         // OpenGL 全局状态设置
@@ -193,6 +205,7 @@ namespace opengl
             ball->transform.position.x = player->getPosition().x + player->getScale().x / 2 - ball->getScale().x / 2;
         else
             ball->move(dt); // 移动小球
+        updateParticles(dt);
 
         // camera->update(getDeltaTime()); // 更新相机位置
         // camera->updateViewProjectionMatrix(); // 更新相机的视图和投影矩阵
@@ -202,19 +215,9 @@ namespace opengl
         camera->drawFullScreen(backgroundTex->ID); // 绘制背景图像到相机帧缓冲
 
         glDisable(GL_CULL_FACE);
-        for (auto& scenePair : scenes)
-        {
-            Scene* scene = scenePair.second;
-            for (auto& object : scene->getObjects())
-            {
-                if (object->isDestroyed) continue;
-                // std::cout << object->isDestroyed << ' ' << object->getRenderer() << std::endl;
-                if (object->getRenderer())
-                {
-                    object->getRenderer()->Draw();
-                }
-            }
-        }
+
+        drawScene("particles");
+        drawScene("default");
         glEnable(GL_CULL_FACE);
 
         func();
@@ -436,6 +439,8 @@ namespace opengl
 
     void Game::processCollisions()
     {
+        std::vector<Object*> toDestroy; // 创建一个列表来存储待销毁的对象
+
         for (auto& object : getScene("default")->getObjects())
         {
             // 处理碰撞检测和响应
@@ -468,8 +473,6 @@ namespace opengl
             {
                 if (object->isDestroyed) continue;
 
-                std::cout << collision.difference.x << ", " << collision.difference.y << std::endl;
-
                 if (collision.collisionDir & (Utility::UP | Utility::DOWN))
                 {
                     ball->velocity.y = -ball->velocity.y; // 反转Y轴速度
@@ -493,12 +496,84 @@ namespace opengl
 
                 if (!object->isSolid)
                 {
-                    object->Destroy();
+                    // 不直接销毁，而是添加到待销毁列表
+                    toDestroy.push_back(object);
+                    // object->Destroy();
                     // delete object; // 这里delete的话，后面重新加载的时候也不会显示了
                 }
             }
         }
+
+        // 现在统一销毁对象
+        for (auto& obj : toDestroy)
+        {
+            obj->Destroy();
+        }
     }
+
+    ParticleObject *Game::getFirstUnusedParticle()
+    {
+        for (auto &p : particles)
+        {
+            if (p->life <= 0.0f)
+            {
+                return p;
+            }
+        }
+        return nullptr;
+    }
+
+
+    void Game::updateParticles(float dt)
+    {
+        particleSpawnTimer += dt;
+        if (particleSpawnTimer > spawnInterval)
+        {
+            particleSpawnTimer = 0.0f;
+            for (int i = 0; i < 2; ++i)
+            {
+                ParticleObject* particle = getFirstUnusedParticle();
+                if (particle)
+                {
+                    particle->isDestroyed = false;
+                    particle->life = 1.0f;
+                    float random = ((rand() % 100) - 50) / 10.0f;
+                    float rColor = 0.5f + ((rand() % 100) / 100.0f);
+                    particle->transform.position =
+                        ball->getPosition() + glm::vec3(random, random, 0.0f) + glm::vec3(ball->radius, ball->radius, 0.0f);
+                    particle->velocity = ball->velocity * 0.05f;
+                    particle->color = glm::vec4(rColor, rColor, rColor, 1.0f);
+                    scenes["particles"]->addObject(particle);
+                }
+            }
+        }
+
+        for (auto &particle : particles)
+        {
+            particle->life -= dt;
+            if (particle->life > 0.0f)
+            {
+                particle->transform.position += glm::vec3(particle->velocity * dt, 0.0f);
+                particle->color.a = std::max(particle->color.a - dt * 2.5f, 0.0f);
+            }
+            else
+            {
+                // particle->Destroy();
+                scenes["particles"]->removeObject(particle);
+            }
+        }
+    }
+
+    void Game::drawScene(const char* sceneName)
+    {
+        for (auto& object : scenes[sceneName]->getObjects())
+        {
+            if (object->isDestroyed) continue;
+            if (object->getRenderer())
+                object->getRenderer()->Draw();
+        }
+    }
+
 
     void Game::resetPlayer()
     {
@@ -558,7 +633,7 @@ namespace opengl
 
                     auto solidBlockTex = Game::getInstance()->solidBlockTex;
                     Transform transform = Transform(glm::vec3(pos, 0.0f), glm::vec3(0.0f), glm::vec3(size, 1.0f));
-                    Object* obj = new Object(transform, glm::vec3(0.8f, 0.8f, 0.7f));
+                    Object* obj = new Object(transform, glm::vec4(0.8f, 0.8f, 0.7f, 1.0f));
                     obj->setRenderer(new SpriteRenderer(spriteShader, solidBlockTex));
                     obj->isSolid = GL_TRUE;
 
@@ -566,15 +641,15 @@ namespace opengl
                 }
                 else if (tileData[y][x] > 1)
                 {
-                    glm::vec3 color = glm::vec3(1.0f); // 默认为白色
+                    glm::vec4 color = glm::vec4(1.0f); // 默认为白色
                     if (tileData[y][x] == 2)
-                        color = glm::vec3(0.2f, 0.6f, 1.0f);
+                        color = glm::vec4(0.2f, 0.6f, 1.0f, 1.0f);
                     else if (tileData[y][x] == 3)
-                        color = glm::vec3(0.0f, 0.7f, 0.0f);
+                        color = glm::vec4(0.0f, 0.7f, 0.0f, 1.0f);
                     else if (tileData[y][x] == 4)
-                        color = glm::vec3(0.8f, 0.8f, 0.4f);
+                        color = glm::vec4(0.8f, 0.8f, 0.4f, 1.0f);
                     else if (tileData[y][x] == 5)
-                        color = glm::vec3(1.0f, 0.5f, 0.0f);
+                        color = glm::vec4(1.0f, 0.5f, 0.0f, 1.0f);
 
                     glm::vec2 pos(unit_width * x, unit_height * y);
                     glm::vec2 size(unit_width, unit_height);
