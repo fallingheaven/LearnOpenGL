@@ -10,6 +10,19 @@ file(GLOB IMGUI_SOURCES "lib/imgui/*.cpp" "lib/imgui/backend/*.cpp")
 
 file(GLOB Utility "src/Utility/*.cpp")
 
+file(GLOB_RECURSE SOLOUD_SOURCES
+        "lib/soloud20200207/src/core/*.cpp"
+        "lib/soloud20200207/src/audiosource/*.cpp"
+        "lib/soloud20200207/src/audiosource/*.c"
+        "lib/soloud20200207/src/backend/winmm/soloud_winmm.cpp"
+)
+add_library(soloud STATIC ${SOLOUD_SOURCES})
+target_include_directories(soloud PUBLIC
+        ${CMAKE_SOURCE_DIR}/lib/soloud20200207/include
+        ${CMAKE_SOURCE_DIR}/lib/soloud20200207/src/audiosource/wav
+)
+target_compile_definitions(soloud PRIVATE "-D SOLOUD_STATIC" "-D WITH_WINMM" "-D INCLUDE_STB_VORBIS")
+
 # 通用配置函数
 function(configure_target target_name sources)
     add_executable(${target_name}
@@ -27,6 +40,8 @@ function(configure_target target_name sources)
 #        ${CMAKE_SOURCE_DIR}/lib/freetype-2.14.1/include
         ${CMAKE_SOURCE_DIR}/thirdparty/glfw/include
         ${CMAKE_SOURCE_DIR}/lib/assimp/assimp-install/include/assimp
+        ${CMAKE_SOURCE_DIR}/lib/soloud20200207/include
+        ${CMAKE_SOURCE_DIR}/lib/soloud20200207/src/audiosource/wav
     )
 
     find_package(assimp REQUIRED)
@@ -44,6 +59,8 @@ function(configure_target target_name sources)
         shell32
         assimp::assimp
         Freetype::Freetype
+        soloud
+        winmm
     )
 
     target_sources(${target_name} PRIVATE

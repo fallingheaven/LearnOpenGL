@@ -8,6 +8,8 @@
 #include <scene.h>
 #include <cmath>
 #include <types.h>
+#include <soloud.h>
+#include <soloud_wav.h>
 
 namespace opengl
 {
@@ -72,6 +74,19 @@ namespace opengl
         bool passThrough = false;
         bool confuse = false;
         bool chaos = false;
+
+        // Mix_Music* bgm = nullptr;
+        // Mix_Chunk* hitBlockSound = nullptr;
+        // Mix_Chunk* hitPlayerSound = nullptr;
+        // Mix_Chunk* pickPropSound = nullptr;
+        // Mix_Chunk* hitSolidBlockSound = nullptr;
+
+        SoLoud::Soloud gSoloud;
+        SoLoud::Wav bgm;
+        SoLoud::Wav hitBlockSound;
+        SoLoud::Wav hitPlayerSound;
+        SoLoud::Wav pickPropSound;
+        SoLoud::Wav hitSolidBlockSound;
 
         unsigned int postprocessingFBO;
         Shader* postprocessingShader = nullptr;

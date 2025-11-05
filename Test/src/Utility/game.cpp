@@ -172,7 +172,7 @@ namespace opengl
 
             ball = new BallObject();
             ball->setScale(glm::vec3(BALL_RADIUS * 2, BALL_RADIUS * 2, 1));
-            ball->setPosition(glm::vec3(getWindow()->getWidth() / 2 - BALL_RADIUS, player->getPosition().y - BALL_RADIUS * 2, 0.0f));
+            ball->setPosition(glm::vec3(getWindow()->getWidth() / 2 - BALL_RADIUS, player->getPosition().y - BALL_RADIUS * 2 - 1.0f, 0.0f));
             ball->velocity = INITIAL_BALL_VELOCITY;
             ball->radius = BALL_RADIUS;
             auto ballRenderer = new SpriteRenderer(spriteShader, ballTex);
@@ -215,6 +215,36 @@ namespace opengl
                         propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_chaos.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
                         break;
                 }
+            }
+        }
+
+        // 初始化 SDL2 和 SDL2_mixer
+        {
+            gSoloud.init();
+
+            if (bgm.load(FileSystem::getPath("Assets/Audio/breakout.mp3").c_str()) != SoLoud::SO_NO_ERROR) {
+                std::cerr << "Failed to load background music" << std::endl;
+                return false;
+            }
+            bgm.setLooping(true); // 设置循环播放
+            gSoloud.play(bgm);    // 播放背景音乐
+
+            // 加载音效
+            if (hitBlockSound.load(FileSystem::getPath("Assets/Audio/bleep.mp3").c_str()) != SoLoud::SO_NO_ERROR) {
+                std::cerr << "Failed to load hitBlockSound" << std::endl;
+                return false;
+            }
+            if (hitPlayerSound.load(FileSystem::getPath("Assets/Audio/bleep.wav").c_str()) != SoLoud::SO_NO_ERROR) {
+                std::cerr << "Failed to load hitPlayerSound" << std::endl;
+                return false;
+            }
+            if (pickPropSound.load(FileSystem::getPath("Assets/Audio/powerup.wav").c_str()) != SoLoud::SO_NO_ERROR) {
+                std::cerr << "Failed to load pickPropSound" << std::endl;
+                return false;
+            }
+            if (hitSolidBlockSound.load(FileSystem::getPath("Assets/Audio/solid.wav").c_str()) != SoLoud::SO_NO_ERROR) {
+                std::cerr << "Failed to load hitSolidBlockSound" << std::endl;
+                return false;
             }
         }
 
@@ -419,6 +449,8 @@ namespace opengl
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
 
+        gSoloud.deinit();
+
         glfwDestroyWindow(window->getInstance());
         glfwTerminate();
     }
@@ -529,6 +561,9 @@ namespace opengl
 
         for (auto& object : getScene("default")->getObjects())
         {
+            if (ball->active == false)
+                break;
+
             // 处理碰撞检测和响应
             if (object == ball)
                 continue;
@@ -539,6 +574,8 @@ namespace opengl
                                                             player->getPosition(), player->getScale());
                 if (collision.isCollided)
                 {
+                    gSoloud.play(hitPlayerSound);
+
                     // 计算碰撞点的相对位置
                     GLfloat centerBoard = player->getPosition().x + player->getScale().x / 2;
                     GLfloat distance = (ball->getPosition().x + ball->radius) - centerBoard;
@@ -584,6 +621,8 @@ namespace opengl
 
                 if (!object->isSolid)
                 {
+                    gSoloud.play(hitBlockSound);
+
                     postprocessingShader->use();
                     postprocessingShader->setBool("shake", true);
                     shakeTime = 0.05f;
@@ -608,6 +647,10 @@ namespace opengl
                         getScene("props")->addObject(props);
                     }
                 }
+                else
+                {
+                    gSoloud.play(hitSolidBlockSound);
+                }
 
             }
         }
@@ -624,6 +667,7 @@ namespace opengl
                 if (propsObj)
                 {
                     std::cout << "collide props: " << propsObj->type << std::endl;
+                    gSoloud.play(pickPropSound);
                     // 处理道具碰撞效果
                     switch (propsObj->type)
                     {
@@ -636,7 +680,7 @@ namespace opengl
                         break;
                         case STICKY:
                             ball->setPosition(glm::vec3(player->getPosition().x + player->getScale().x / 2 - ball->getScale().x / 2,
-                                                        player->getPosition().y - ball->getScale().y,
+                                                        player->getPosition().y - ball->getScale().y - 1.0f,
                                                         0.0f));
                             ball->active = false;
                             activeBuffs[STICKY] = 999.9f; // 永久
