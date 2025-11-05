@@ -7,6 +7,7 @@
 #include <map>
 #include <scene.h>
 #include <cmath>
+#include <types.h>
 
 namespace opengl
 {
@@ -14,6 +15,7 @@ namespace opengl
     class Object;
     class BallObject;
     class ParticleObject;
+    class PropsObject;
     class Scene;
     class Texture;
 
@@ -63,6 +65,13 @@ namespace opengl
         std::vector<ParticleObject*> particles;
         float particleSpawnTimer = 0.0f;
         const float spawnInterval = 0.05f;
+        std::map<PropsType, float> activeBuffs;
+        std::map<PropsType, Texture*> propsTextures;
+        const glm::vec2 PROP_SIZE = glm::vec2(60.0f, 20.0f);
+        const glm::vec2 PROP_VELOCITY = glm::vec2(0.0f, 150.0f);
+        bool passThrough = false;
+        bool confuse = false;
+        bool chaos = false;
 
         unsigned int postprocessingFBO;
         Shader* postprocessingShader = nullptr;
@@ -100,6 +109,8 @@ namespace opengl
 
         ParticleObject* getFirstUnusedParticle();
         void updateParticles(float dt);
+        void updateProps(float dt);
+        void updateActiveBuffs(float dt);
         void drawScene(const char* sceneName);
     };
 

@@ -2,6 +2,7 @@
 #include <list>
 #include <spriteRenderer.h>
 #include <game.h>
+#include <types.h>
 
 namespace opengl
 {
@@ -114,5 +115,16 @@ namespace opengl
         ParticleObject() : Object(), life(0.0f), initialLife(1.0f) {}
         ParticleObject(Scene *scene) : Object(scene), life(0.0f), initialLife(1.0f) {}
         ParticleObject(Transform transform, glm::vec4 color) : Object(transform, color), life(0.0f), initialLife(1.0f) {}
+    };
+
+    class PropsObject : public Object
+    {
+    public:
+        PropsType type = None;
+        glm::vec2 velocity = glm::vec2(0.0f, 150.0f);
+
+        PropsObject() : Object() {}
+        PropsObject(Scene *scene) : Object(scene) {}
+        PropsObject(Transform transform, glm::vec4 color) : Object(transform, color) {}
     };
 }

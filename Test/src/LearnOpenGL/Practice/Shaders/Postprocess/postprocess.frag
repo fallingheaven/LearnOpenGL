@@ -24,19 +24,19 @@ void main()
         }
         FragColor.a = 1.0f;
     }
+    else if (confuse)
+    {
+        FragColor = vec4(1.0 - texture(scene, TexCoords).rgb, 1.0);
+    }
     else if (shake)
     {
         for(int i = 0; i < 9; i++)
         {
             FragColor += vec4(texture(scene, TexCoords + offsets[i]).rgb * blur_kernel[i], 0);
         }
-//        FragColor = vec4(texture(scene, TexCoords + offsets[5]).rgb * blur_kernel[5], 0);
+        //        FragColor = vec4(texture(scene, TexCoords + offsets[5]).rgb * blur_kernel[5], 0);
         FragColor.a = 1.0f;
         return;
-    }
-    else if (confuse)
-    {
-        FragColor = vec4(1.0 - texture(scene, TexCoords).rgb, 1.0);
     }
     else
     {

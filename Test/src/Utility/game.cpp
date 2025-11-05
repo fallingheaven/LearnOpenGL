@@ -22,7 +22,8 @@ namespace opengl
 
         scenes = {
             {"default", new Scene()},
-            {"particles", new Scene()}
+            {"particles", new Scene()},
+            {"props", new Scene()}
         };
 
         levels = {};
@@ -161,6 +162,7 @@ namespace opengl
             this->levels.push_back(four);
             this->currentLevelIndex = 0;
 
+            // 初始化玩家挡板和球
             auto playerTex = new Texture(); playerTex->init(FileSystem::getPath("Assets/Materials/paddle.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
             player = new Object();
             player->setScale(glm::vec3(PLAYER_SIZE, 1));
@@ -176,12 +178,43 @@ namespace opengl
             auto ballRenderer = new SpriteRenderer(spriteShader, ballTex);
             ball->setRenderer(ballRenderer);
 
+            // 预创建粒子对象池
             for (int i = 0; i < 500; i++)
             {
                 auto p = new ParticleObject();
                 auto particleRenderer = new ParticleRenderer(particleShader, particleTex);
                 p->setRenderer(particleRenderer);
                 particles.push_back(p);
+            }
+
+            // 创建道具纹理
+            for (PropsType type = None; type <= CHAOS; type = static_cast<PropsType>(static_cast<int>(type) + 1))
+            {
+                activeBuffs[type] = 0.0f;
+                propsTextures[type] = new Texture();
+                switch (type)
+                {
+                    case None:
+                        break;
+                    case SPEED_UP:
+                        propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_speed.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
+                        break;
+                    case STICKY:
+                        propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_sticky.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
+                        break;
+                    case PASS_THROUGH:
+                        propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_passthrough.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
+                        break;
+                    case PAD_SIZE_INCREASE:
+                        propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_increase.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
+                        break;
+                    case CONFUSE:
+                        propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_confuse.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
+                        break;
+                    case CHAOS:
+                        propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_chaos.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
+                        break;
+                }
             }
         }
 
@@ -239,6 +272,8 @@ namespace opengl
         else
             ball->move(dt); // 移动小球
         updateParticles(dt);
+        updateProps(dt);
+        updateActiveBuffs(dt);
 
         if (shakeTime > 0.0f)
         {
@@ -249,6 +284,11 @@ namespace opengl
             {
                 postprocessingShader->setBool("shake", false);
             }
+        }
+        if (activeBuffs[PropsType::CHAOS] > 0.0f)
+        {
+            postprocessingShader->use();
+            postprocessingShader->setFloat("time", glfwGetTime());
         }
 
         // camera->update(getDeltaTime()); // 更新相机位置
@@ -262,6 +302,7 @@ namespace opengl
 
         drawScene("particles");
         drawScene("default");
+        drawScene("props");
         glEnable(GL_CULL_FACE);
 
         func();
@@ -516,39 +557,113 @@ namespace opengl
                                                         object->getPosition(), object->getScale());
             if (collision.isCollided)
             {
-                if (object->isDestroyed) continue;
-
-                if (collision.collisionDir & (Utility::UP | Utility::DOWN))
+                if (!passThrough)
                 {
-                    ball->velocity.y = -ball->velocity.y; // 反转Y轴速度
-                    // 根据碰撞方向调整位置，防止粘连
-                    GLfloat penetration = ball->radius - abs(collision.difference.y);
-                    if (collision.collisionDir == Utility::UP)
-                        ball->transform.position.y += penetration;
+                    if (collision.collisionDir & (Utility::UP | Utility::DOWN))
+                    {
+                        ball->velocity.y = -ball->velocity.y; // 反转Y轴速度
+                        // 根据碰撞方向调整位置，防止粘连
+                        GLfloat penetration = ball->radius - abs(collision.difference.y);
+                        if (collision.collisionDir == Utility::UP)
+                            ball->transform.position.y += penetration;
+                        else
+                            ball->transform.position.y -= penetration;
+                    }
                     else
-                        ball->transform.position.y -= penetration;
-                }
-                else
-                {
-                    ball->velocity.x = -ball->velocity.x; // 反转X轴速度
-                    // 根据碰撞方向调整位置，防止粘连
-                    GLfloat penetration = ball->radius - abs(collision.difference.x);
-                    if (collision.collisionDir == Utility::RIGHT)
-                        ball->transform.position.x += penetration;
-                    else
-                        ball->transform.position.x -= penetration;
+                    {
+                        ball->velocity.x = -ball->velocity.x; // 反转X轴速度
+                        // 根据碰撞方向调整位置，防止粘连
+                        GLfloat penetration = ball->radius - abs(collision.difference.x);
+                        if (collision.collisionDir == Utility::RIGHT)
+                            ball->transform.position.x += penetration;
+                        else
+                            ball->transform.position.x -= penetration;
+                    }
                 }
 
-                postprocessingShader->use();
-                postprocessingShader->setBool("shake", true);
-                shakeTime = 0.05f;
 
                 if (!object->isSolid)
                 {
+                    postprocessingShader->use();
+                    postprocessingShader->setBool("shake", true);
+                    shakeTime = 0.05f;
+
                     // 不直接销毁，而是添加到待销毁列表
                     toDestroy.push_back(object);
                     // object->Destroy();
                     // delete object; // 这里delete的话，后面重新加载的时候也不会显示了
+
+                    if (rand() % 5 == 0) // 20%的概率生成道具
+                    {
+                        auto pType = static_cast<PropsType>((rand() % (CHAOS)) + 1);
+                        auto props = new PropsObject();
+                        props->type = pType;
+                        props->setScale(glm::vec3(PROP_SIZE, 1.0f));
+                        props->setPosition(object->getPosition() + glm::vec3(object->getScale().x / 2 - props->getScale().x / 2,
+                                                                             object->getScale().y / 2 - props->getScale().y / 2,
+                                                                             0.0f));
+                        props->velocity = PROP_VELOCITY;
+                        auto propsRenderer = new SpriteRenderer(camera->getSpriteShader(), propsTextures[pType]);
+                        props->setRenderer(propsRenderer);
+                        getScene("props")->addObject(props);
+                    }
+                }
+
+            }
+        }
+
+        for (auto& object : getScene("props")->getObjects())
+        {
+            auto collision = Utility::checkCollisionAABB(player->getPosition(), player->getScale(),
+                                                        object->getPosition(), object->getScale());
+            if (collision.isCollided)
+            {
+                if (object->isDestroyed) continue;
+
+                auto propsObj = dynamic_cast<PropsObject*>(object);
+                if (propsObj)
+                {
+                    std::cout << "collide props: " << propsObj->type << std::endl;
+                    // 处理道具碰撞效果
+                    switch (propsObj->type)
+                    {
+                        case None:
+                            std::cerr << "Error: PropsType is None." << std::endl;
+                        break;
+                        case SPEED_UP:
+                            ball->velocity *= 1.2f; // 提升20%速度
+                        activeBuffs[SPEED_UP] = 5.0f; // 持续5秒
+                        break;
+                        case STICKY:
+                            ball->setPosition(glm::vec3(player->getPosition().x + player->getScale().x / 2 - ball->getScale().x / 2,
+                                                        player->getPosition().y - ball->getScale().y,
+                                                        0.0f));
+                            ball->active = false;
+                            activeBuffs[STICKY] = 999.9f; // 永久
+                        break;
+                        case PASS_THROUGH:
+                            passThrough = true;
+                            activeBuffs[PASS_THROUGH] = 5.0f; // 持续5秒
+                        break;
+                        case PAD_SIZE_INCREASE:
+                            player->setScale(glm::vec3(player->getScale().x * 1.5f, player->getScale().y, player->getScale().z));
+                            activeBuffs[PAD_SIZE_INCREASE] = 10.0f; // 持续10秒
+                        break;
+                        case CONFUSE:
+                            confuse = true;
+                            postprocessingShader->use();
+                            postprocessingShader->setBool("confuse", true);
+                            activeBuffs[CONFUSE] = 3.0f; // 持续5秒
+                        break;
+                        case CHAOS:
+                            chaos = true;
+                            postprocessingShader->use();
+                            postprocessingShader->setBool("chaos", true);
+                            activeBuffs[CHAOS] = 3.0f; // 持续5秒
+                        break;
+                    }
+
+                    toDestroy.push_back(object);
                 }
             }
         }
@@ -592,7 +707,7 @@ namespace opengl
                         ball->getPosition() + glm::vec3(random, random, 0.0f) + glm::vec3(ball->radius, ball->radius, 0.0f);
                     particle->velocity = ball->velocity * 0.05f;
                     particle->color = glm::vec4(rColor, rColor, rColor, 1.0f);
-                    scenes["particles"]->addObject(particle);
+                    getScene("particles")->addObject(particle);
                 }
             }
         }
@@ -608,10 +723,75 @@ namespace opengl
             else
             {
                 // particle->Destroy();
-                scenes["particles"]->removeObject(particle);
+                getScene("particles")->removeObject(particle);
             }
         }
     }
+
+    void Game::updateProps(float dt)
+    {
+        std::vector<Object*> toDestroy; // 创建一个列表来存储待销毁的对象
+
+        for (auto &propsObj : scenes["props"]->getObjects())
+        {
+            auto props = dynamic_cast<PropsObject*>(propsObj);
+            if (!props) continue;
+
+            props->transform.position += glm::vec3(props->velocity * dt, 0.0f);
+            if (props->getPosition().y >= getWindow()->getHeight())
+            {
+                toDestroy.push_back(props);
+            }
+        }
+
+        for (auto& obj : toDestroy)
+        {
+            obj->Destroy();
+        }
+    }
+
+    void Game::updateActiveBuffs(float dt)
+    {
+        for (auto& buff : activeBuffs)
+        {
+            if (buff.second <= 0.0f) continue;
+
+            buff.second -= dt;
+            if (buff.second <= 0.0f)
+            {
+                // Buff过期，执行相应的清除操作
+                switch (buff.first)
+                {
+                    case None:
+                        break;
+                    case SPEED_UP:
+                        ball->velocity /= 1.2f; // 恢复原始速度
+                        break;
+                    case STICKY:
+                        std::cerr << "Sticky buff expired." << std::endl;
+                        break;
+                    case PASS_THROUGH:
+                        passThrough = false;
+                        break;
+                    case PAD_SIZE_INCREASE:
+                        player->setScale(glm::vec3(PLAYER_SIZE, 1.0f));
+                        break;
+                    case CONFUSE:
+                        confuse = false;
+                        postprocessingShader->use();
+                        postprocessingShader->setBool("confuse", false);
+                        break;
+                    case CHAOS:
+                        chaos = false;
+                        postprocessingShader->use();
+                        postprocessingShader->setBool("chaos", false);
+                        break;
+                }
+            }
+        }
+    }
+
+
 
     void Game::drawScene(const char* sceneName)
     {
