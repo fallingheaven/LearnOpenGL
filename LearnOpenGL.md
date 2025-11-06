@@ -1860,6 +1860,12 @@ else
 
 就是`irrKlang`库似乎不能免费下载了，用的`SoLoud`
 
+#### 文本
+
+最后把文本渲染上去，然后通一下游戏关卡流程，就结束了
+
+<img src="E:\code\Learn\opengl\assets\image-20251106165956180.png" alt="image-20251106165956180" style="zoom:67%;" /> 
+
 #### 一些bug
 
 glTexImage2D段错误，是因为数据格式使用了RGBA，但对应`png`只有RGB

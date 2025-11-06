@@ -18,7 +18,7 @@ int main()
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     }
 
-    gameInstance->loadLevel(0);
+    // gameInstance->loadLevel(0);
 
     // auto testObj = new Object(gameInstance->getScene());
     // testObj->setPosition(glm::vec3(400, 400, 0));

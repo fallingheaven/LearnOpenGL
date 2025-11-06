@@ -8,8 +8,12 @@
 #include <scene.h>
 #include <cmath>
 #include <types.h>
+#include <filesystem.hpp>
 #include <soloud.h>
 #include <soloud_wav.h>
+
+#include <freetype2/ft2build.h>
+#include FT_FREETYPE_H
 
 namespace opengl
 {
@@ -18,6 +22,7 @@ namespace opengl
     class BallObject;
     class ParticleObject;
     class PropsObject;
+    class TextObject;
     class Scene;
     class Texture;
 
@@ -49,9 +54,10 @@ namespace opengl
         {
             GAME_ACTIVE,
             GAME_MENU,
-            GAME_WIN
+            GAME_WIN,
+            GAME_LOSE
         };
-        GameState State = GAME_ACTIVE;
+        GameState State = GAME_MENU;
 
         Texture* blockTex;
         Texture* solidBlockTex;
@@ -67,6 +73,7 @@ namespace opengl
         std::vector<ParticleObject*> particles;
         float particleSpawnTimer = 0.0f;
         const float spawnInterval = 0.05f;
+
         std::map<PropsType, float> activeBuffs;
         std::map<PropsType, Texture*> propsTextures;
         const glm::vec2 PROP_SIZE = glm::vec2(60.0f, 20.0f);
@@ -74,6 +81,16 @@ namespace opengl
         bool passThrough = false;
         bool confuse = false;
         bool chaos = false;
+
+        unsigned int textVAO{}, textVBO{};
+        Shader* textShader;
+        std::map<wchar_t, Character> Characters;
+        std::string FONT_PATH = FileSystem::getPath("Assets/Fonts/AaFuLuBangShu/AaFuLuBangShu-2.ttf");
+        TextObject* lifeText = nullptr;
+        TextObject* scoreText = nullptr;
+        int playerLives = 3;
+        int playerScore = 0;
+        TextObject* resultText = nullptr;
 
         // Mix_Music* bgm = nullptr;
         // Mix_Chunk* hitBlockSound = nullptr;
@@ -91,6 +108,8 @@ namespace opengl
         unsigned int postprocessingFBO;
         Shader* postprocessingShader = nullptr;
         float shakeTime = 0.0f;
+
+        bool pause = false;
 
         Object* player = nullptr;
         // 初始化挡板的大小
@@ -111,6 +130,10 @@ namespace opengl
         int frameCount = 0;
         float fps = 0.0f;
 
+        std::map<int, int> keyStates;
+        bool isKeyJustPressed(int key);
+        bool isKeyJustReleased(int key);
+
         void calculateFPS();
 
         void setWindow(class window* target);
@@ -127,6 +150,16 @@ namespace opengl
         void updateProps(float dt);
         void updateActiveBuffs(float dt);
         void drawScene(const char* sceneName);
+
+        void loadFont(std::string& fontPath);
+        void bindTextVAO();
+
+        void enterMenu();
+        void enterPlay();
+        void enterWin();
+        void enterLose();
+
+        bool isCompleted();
     };
 
     class GameLevel
@@ -138,7 +171,6 @@ namespace opengl
         ~GameLevel() = default;
 
         void load(std::string levelFile, GLuint levelWidth, GLuint levelHeight);
-        bool isCompleted();
     private:
         void init(std::vector<std::vector<GLuint>> tileData);
         GLuint levelWidth{};

@@ -5,6 +5,7 @@
 #include <glad/glad.h>
 #include <spriteRenderer.h>
 #include <game.h>
+#include <types.h>
 
 namespace opengl
 {
@@ -75,5 +76,21 @@ namespace opengl
         void Draw() override;
     private:
         Texture *texture;
+    };
+
+    class TextRenderer : public Renderer
+    {
+    public:
+        TextRenderer(Shader *shader, unsigned int VAO, unsigned int VBO, std::map<wchar_t, Character> *characters) : Renderer(shader)
+        {
+            this->textVAO = VAO;
+            this->textVBO = VBO;
+            this->Characters = characters;
+        };
+
+        void Draw() override;
+    private:
+        std::map<wchar_t, Character>* Characters;
+        unsigned int textVAO, textVBO;
     };
 }

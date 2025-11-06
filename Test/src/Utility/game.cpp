@@ -23,7 +23,9 @@ namespace opengl
         scenes = {
             {"default", new Scene()},
             {"particles", new Scene()},
-            {"props", new Scene()}
+            {"props", new Scene()},
+            {"text", new Scene()},
+            {"player", new Scene()}
         };
 
         levels = {};
@@ -104,6 +106,10 @@ namespace opengl
                                    FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/sprite.frag"));
         Shader *particleShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Particle/particle.vert"),
                                       FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Particle/particle.frag"));
+        textShader = new Shader(FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Text/text.vert"),
+                                FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Text/text.frag"));
+        bindTextVAO();
+        loadFont(FONT_PATH);
         postprocessingShader = new Shader (FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Postprocess/postprocess.vert"),
                                           FileSystem::getPath("src/LearnOpenGL/Practice/Shaders/Postprocess/postprocess.frag"));
         postprocessingShader->use();
@@ -198,24 +204,47 @@ namespace opengl
                         break;
                     case SPEED_UP:
                         propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_speed.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
-                        break;
+                    break;
                     case STICKY:
                         propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_sticky.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
-                        break;
+                    break;
                     case PASS_THROUGH:
                         propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_passthrough.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
-                        break;
+                    break;
                     case PAD_SIZE_INCREASE:
                         propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_increase.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
-                        break;
+                    break;
                     case CONFUSE:
                         propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_confuse.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
-                        break;
+                    break;
                     case CHAOS:
                         propsTextures[type]->init(FileSystem::getPath("Assets/Materials/powerup_chaos.png"), GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TEXTURE_2D);
-                        break;
+                    break;
                 }
             }
+
+            lifeText = new TextObject(L"lives: 3");
+            lifeText->setPosition(glm::vec3(10.0f, 10.0f, 0.0f));
+            lifeText->setScale(glm::vec3(200.0f, 40.0f, 1.0f));
+            auto lifeTextRenderer = new TextRenderer(textShader, textVAO, textVBO, &Characters);
+            lifeText->setRenderer(lifeTextRenderer);
+
+            scoreText = new TextObject(L"score: 0");
+            scoreText->setPosition(glm::vec3(getWindow()->getWidth() - 210.0f, 10.0f, 0.0f));
+            scoreText->setScale(glm::vec3(200.0f, 40.0f, 1.0f));
+            auto scoreTextRenderer = new TextRenderer(textShader, textVAO, textVBO, &Characters);
+            scoreText->setRenderer(scoreTextRenderer);
+
+            resultText = new TextObject(L"");
+            resultText->setPosition(glm::vec3(getWindow()->getWidth() / 2 - 200.0f, getWindow()->getHeight() / 2 - 20.0f, 0.0f));
+            resultText->setScale(glm::vec3(400.0f, 40.0f, 1.0f));
+            auto resultTextRenderer = new TextRenderer(textShader, textVAO, textVBO, &Characters);
+            resultText->setRenderer(resultTextRenderer);
+            resultText->setText(L"Press Enter to Start!\nPress A/D to Change Level\nCurrent Level: " + std::to_wstring(currentLevelIndex + 1));
+            scenes["text"]->addObject(resultText);
+
+
+            loadLevel(0);
         }
 
         // 初始化 SDL2 和 SDL2_mixer
@@ -276,9 +305,6 @@ namespace opengl
 
     void Game::update(const std::function<void()>& func)
     {
-        if (State != GAME_ACTIVE)
-            return;
-
         if (glfwGetKey(window->getInstance(), GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
             close();
@@ -287,23 +313,52 @@ namespace opengl
 
         window->preUpdate(); // 清空缓冲区，并处理事件
 
-        if (ball->getPosition().y > getWindow()->getHeight())
+        float dt = getDeltaTime();
+        if (pause) dt = 0;
+
+        processInput(dt); // 处理输入
+        // std::cout << "暂停状态: " << (pause ? "是" : "否") << std::endl;
+
+        switch (this->State)
         {
-            loadLevel();
-            return;
+            case GAME_ACTIVE:
+                if (ball->getPosition().y > getWindow()->getHeight())
+                {
+                    playerLives--;
+                    if (playerLives <= 0)
+                    {
+                        enterLose();
+                        break;
+                    }
+                    resetPlayer();
+                }
+                if (isCompleted())
+                {
+                    enterWin();
+                    break;
+                }
+
+                scoreText->setText(L"score: " + std::to_wstring(playerScore));
+                lifeText->setText(L"lives: " + std::to_wstring(playerLives));
+
+                if (!pause)
+                    processCollisions(); // 处理碰撞检测
+
+                if (!ball->active)
+                    ball->transform.position.x = player->getPosition().x + player->getScale().x / 2 - ball->getScale().x / 2;
+                else
+                    ball->move(dt); // 移动小球
+                updateParticles(dt);
+                updateProps(dt);
+                updateActiveBuffs(dt);
+            break;
+            case GAME_MENU:
+            case GAME_WIN:
+            case GAME_LOSE:
+            default:
+                break;
         }
 
-        processCollisions(); // 处理碰撞检测
-
-        float dt = getDeltaTime();
-        processInput(dt); // 处理输入
-        if (!ball->active)
-            ball->transform.position.x = player->getPosition().x + player->getScale().x / 2 - ball->getScale().x / 2;
-        else
-            ball->move(dt); // 移动小球
-        updateParticles(dt);
-        updateProps(dt);
-        updateActiveBuffs(dt);
 
         if (shakeTime > 0.0f)
         {
@@ -333,6 +388,8 @@ namespace opengl
         drawScene("particles");
         drawScene("default");
         drawScene("props");
+        drawScene("player");
+        drawScene("text");
         glEnable(GL_CULL_FACE);
 
         func();
@@ -495,9 +552,14 @@ namespace opengl
         {
             scene->addObject(object);
         }
+
+        scene = getScene("player");
+        scene->clearObjects();
         resetPlayer();
         scene->addObject(player);
         scene->addObject(ball);
+        playerLives = 3;
+        playerScore = 0;
     }
 
     void Game::loadLevel(int level)
@@ -510,9 +572,14 @@ namespace opengl
         {
             scene->addObject(object);
         }
+
+        scene = getScene("player");
+        scene->clearObjects();
         resetPlayer();
         scene->addObject(player);
         scene->addObject(ball);
+        playerLives = 3;
+        playerScore = 0;
     }
 
     void Game::loadLevel()
@@ -527,10 +594,76 @@ namespace opengl
         {
             scene->addObject(object);
         }
+
+        scene = getScene("player");
+        scene->clearObjects();
         resetPlayer();
         scene->addObject(player);
         scene->addObject(ball);
+        playerLives = 3;
+        playerScore = 0;
     }
+
+    void Game::enterMenu()
+    {
+        if (this->State == GAME_MENU)
+            return;
+        if (this->State == GAME_ACTIVE || this->State == GAME_WIN)
+        {
+            scenes["text"]->removeObject(lifeText);
+            scenes["text"]->removeObject(scoreText);
+        }
+
+        this->State = GAME_MENU;
+        resultText->setText(L"Press Enter to Start!\nPress A/D to Change Level\nCurrent Level: " + std::to_wstring(currentLevelIndex + 1));
+        scenes["text"]->addObject(resultText);
+    }
+
+    void Game::enterPlay()
+    {
+        if (this->State == GAME_ACTIVE)
+            return;
+        if (this->State == GAME_MENU || this->State == GAME_WIN)
+        {
+            scenes["text"]->removeObject(resultText);
+        }
+
+        this->State = GAME_ACTIVE;
+        playerLives = 3;
+        playerScore = 0;
+        scenes["text"]->addObject(lifeText);
+        scenes["text"]->addObject(scoreText);
+    }
+
+    void Game::enterWin()
+    {
+        if (this->State == GAME_WIN)
+            return;
+        if (this->State == GAME_ACTIVE)
+        {
+
+        }
+
+        this->State = GAME_WIN;
+        resultText->setText(L"You Win! Press Enter to Restart!\nor Press Q to Menu!");
+        scenes["text"]->addObject(resultText);
+    }
+
+    void Game::enterLose()
+    {
+        if (this->State == GAME_LOSE)
+            return;
+        if (this->State == GAME_ACTIVE)
+        {
+            scenes["text"]->removeObject(lifeText);
+            scenes["text"]->removeObject(scoreText);
+        }
+
+        this->State = GAME_LOSE;
+        resultText->setText(L"You Lose! Press Enter to Restart!\nor Press Q to Menu!");
+        scenes["text"]->addObject(resultText);
+    }
+
 
     void Game::processInput(GLfloat dt)
     {
@@ -548,9 +681,55 @@ namespace opengl
                 if (player->transform.position.x <= getWindow()->getWidth() - player->transform.scale.x)
                     player->transform.position.x += velocity;
             }
-            if (glfwGetKey(getWindow()->getInstance(),GLFW_KEY_SPACE) == GLFW_PRESS)
+            if (isKeyJustPressed(GLFW_KEY_SPACE))
             {
                 ball->active = true;
+            }
+            if (isKeyJustPressed(GLFW_KEY_Q))
+            {
+                enterMenu();
+            }
+            if (isKeyJustPressed(GLFW_KEY_P))
+            {
+                pause = !pause;
+            }
+        }
+        else if (this->State == GAME_MENU)
+        {
+            if (isKeyJustPressed(GLFW_KEY_A))
+            {
+                currentLevelIndex--;
+                if (currentLevelIndex < 0)
+                    currentLevelIndex = static_cast<int>(levels.size()) - 1;
+                loadLevel(currentLevelIndex);
+                resultText->setText(L"Press Enter to Start!\nPress A/D to Change Level\nCurrent Level: " + std::to_wstring(currentLevelIndex + 1));
+            }
+            if (isKeyJustPressed(GLFW_KEY_D))
+            {
+                currentLevelIndex++;
+                if (currentLevelIndex >= static_cast<int>(levels.size()))
+                    currentLevelIndex = 0;
+                loadLevel(currentLevelIndex);
+                resultText->setText(L"Press Enter to Start!\nPress A/D to Change Level\nCurrent Level: " + std::to_wstring(currentLevelIndex + 1));
+            }
+            if (isKeyJustPressed(GLFW_KEY_ENTER))
+            {
+                enterPlay();
+            }
+        }
+        else if (this->State == GAME_WIN || this->State == GAME_LOSE)
+        {
+            if (isKeyJustPressed(GLFW_KEY_ENTER))
+            {
+                this->State = GAME_ACTIVE;
+                playerLives = 3;
+                playerScore = 0;
+                currentLevelIndex = 0;
+                scenes["text"]->removeObject(resultText);
+            }
+            if (isKeyJustPressed(GLFW_KEY_Q))
+            {
+                enterMenu();
             }
         }
     }
@@ -558,37 +737,32 @@ namespace opengl
     void Game::processCollisions()
     {
         std::vector<Object*> toDestroy; // 创建一个列表来存储待销毁的对象
+        // 检测小球与挡板的碰撞
+        if (ball->active)
+        {
+            auto collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
+                                                                player->getPosition(), player->getScale());
+            if (collision.isCollided)
+            {
+                gSoloud.play(hitPlayerSound);
+
+                // 计算碰撞点的相对位置
+                GLfloat centerBoard = player->getPosition().x + player->getScale().x / 2;
+                GLfloat distance = (ball->getPosition().x + ball->radius) - centerBoard;
+                GLfloat percentage = distance / (player->getScale().x / 2);
+                // 根据碰撞点调整小球的速度
+                GLfloat strength = 2.0f;
+                glm::vec2 oldVelocity = ball->velocity;
+                ball->velocity.x = INITIAL_BALL_VELOCITY.x * percentage * strength;
+                ball->velocity.y = -1 * abs(ball->velocity.y);
+                ball->velocity = glm::normalize(ball->velocity) * glm::length(oldVelocity);
+            }
+        }
 
         for (auto& object : getScene("default")->getObjects())
         {
             if (ball->active == false)
                 break;
-
-            // 处理碰撞检测和响应
-            if (object == ball)
-                continue;
-
-            if (object == player)
-            {
-                auto collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
-                                                            player->getPosition(), player->getScale());
-                if (collision.isCollided)
-                {
-                    gSoloud.play(hitPlayerSound);
-
-                    // 计算碰撞点的相对位置
-                    GLfloat centerBoard = player->getPosition().x + player->getScale().x / 2;
-                    GLfloat distance = (ball->getPosition().x + ball->radius) - centerBoard;
-                    GLfloat percentage = distance / (player->getScale().x / 2);
-                    // 根据碰撞点调整小球的速度
-                    GLfloat strength = 2.0f;
-                    glm::vec2 oldVelocity = ball->velocity;
-                    ball->velocity.x = INITIAL_BALL_VELOCITY.x * percentage * strength;
-                    ball->velocity.y = -1 * abs(ball->velocity.y);
-                    ball->velocity = glm::normalize(ball->velocity) * glm::length(oldVelocity);
-                }
-                continue;
-            }
 
             auto collision = Utility::checkCollisionAABB(ball->getPosition(), ball->radius,
                                                         object->getPosition(), object->getScale());
@@ -596,9 +770,31 @@ namespace opengl
             {
                 if (!passThrough)
                 {
-                    if (collision.collisionDir & (Utility::UP | Utility::DOWN))
+                    // switch (collision.collisionDir)
+                    // {
+                    //     case Utility::UP:
+                    //         std::cout << "Collision: UP" << std::endl;
+                    //         break;
+                    //     case Utility::DOWN:
+                    //         std::cout << "Collision: DOWN" << std::endl;
+                    //         break;
+                    //     case Utility::LEFT:
+                    //         std::cout << "Collision: LEFT" << std::endl;
+                    //         break;
+                    //     case Utility::RIGHT:
+                    //         std::cout << "Collision: RIGHT" << std::endl;
+                    //         break;
+                    //     default:
+                    //         std::cout << "Collision: NONE" << std::endl;
+                    //         break;
+                    // }
+                    // std::cout << "dir: " << collision.collisionDir << std::endl;
+                    // 处理小球与砖块的碰撞反弹
+                    if (collision.collisionDir == Utility::UP || collision.collisionDir == Utility::DOWN)
                     {
+                        // std::cout << "反转前Y速度: " << ball->velocity.y << "  ";
                         ball->velocity.y = -ball->velocity.y; // 反转Y轴速度
+                        // std::cout << "反转后Y速度: " << ball->velocity.y << std::endl;
                         // 根据碰撞方向调整位置，防止粘连
                         GLfloat penetration = ball->radius - abs(collision.difference.y);
                         if (collision.collisionDir == Utility::UP)
@@ -608,19 +804,22 @@ namespace opengl
                     }
                     else
                     {
+                        // std::cout << "反转前X速度: " << ball->velocity.x << "  ";
                         ball->velocity.x = -ball->velocity.x; // 反转X轴速度
+                        // std::cout << "反转后X速度: " << ball->velocity.x << std::endl;
                         // 根据碰撞方向调整位置，防止粘连
                         GLfloat penetration = ball->radius - abs(collision.difference.x);
                         if (collision.collisionDir == Utility::RIGHT)
-                            ball->transform.position.x += penetration;
-                        else
                             ball->transform.position.x -= penetration;
+                        else
+                            ball->transform.position.x += penetration;
                     }
                 }
 
 
                 if (!object->isSolid)
                 {
+                    playerScore += 100;
                     gSoloud.play(hitBlockSound);
 
                     postprocessingShader->use();
@@ -836,6 +1035,118 @@ namespace opengl
     }
 
 
+    void Game::loadFont(std::string& fontPath)
+    {
+        std::setlocale(LC_ALL, "en_US.UTF-8"); // 或者 "zh_CN.UTF-8"
+
+        FT_Library ft;
+        if (FT_Init_FreeType(&ft))
+            std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+
+        FT_Face face;
+        if (FT_New_Face(ft, fontPath.c_str(), 0, &face))
+            std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+
+        FT_Set_Pixel_Sizes(face, 0, 48);
+
+        // FT_Matrix matrix;
+        // FT_Vector pen;
+        // double angle = glm::radians(90.0); // 旋转角度，单位为弧度
+        // matrix.xx = (FT_Fixed)(cos(angle) * 0x10000L);
+        // matrix.xy = (FT_Fixed)(-sin(angle) * 0x10000L);
+        // matrix.yx = (FT_Fixed)(sin(angle) * 0x10000L);
+        // matrix.yy = (FT_Fixed)(cos(angle) * 0x10000L);
+        // pen.x = 0;
+        // pen.y = 0;
+        // FT_Set_Transform(face, &matrix, &pen);
+
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); //禁用字节对齐限制
+        for (GLubyte c = 0; c < 128; c++)
+        {
+            // 加载字符的字形
+            if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+            {
+                std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+                continue;
+            }
+            // 生成纹理
+            GLuint texture;
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RED,
+                face->glyph->bitmap.width,
+                face->glyph->bitmap.rows,
+                0,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                face->glyph->bitmap.buffer
+            );
+            // 设置纹理选项
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            // 储存字符供之后使用
+            Character character = {
+                texture,
+                glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+                glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+                glm::ivec2(face->glyph->advance.x, face->glyph->advance.y)
+            };
+            Characters.insert(std::pair<wchar_t, Character>((wchar_t)c, character));
+        }
+
+        std::wstring chinese_chars = L"测试字体渲染功能";
+        for (wchar_t c : chinese_chars) {
+            if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+                std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+                continue;
+            }
+            // ... (与上面完全相同的纹理生成和存储逻辑)
+            GLuint texture;
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(
+                GL_TEXTURE_2D, 0, GL_RED,
+                face->glyph->bitmap.width, face->glyph->bitmap.rows,
+                0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer
+            );
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            Character character = {
+                texture,
+                glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+                glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+                glm::ivec2(face->glyph->advance.x, face->glyph->advance.y)
+            };
+            // std::cout << c << ' ' << character.TextureID << std::endl;
+            Characters.insert(std::pair<wchar_t, Character>(c, character));
+        }
+
+        FT_Done_Face(face);
+        FT_Done_FreeType(ft);
+    }
+
+    void Game::bindTextVAO()
+    {
+        glGenVertexArrays(1, &textVAO);
+        glGenBuffers(1, &textVBO);
+        glBindVertexArray(textVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 6 * 4, nullptr, GL_DYNAMIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+
+
 
     void Game::drawScene(const char* sceneName)
     {
@@ -938,4 +1249,29 @@ namespace opengl
         }
     }
 
+    bool Game::isCompleted()
+    {
+        for (auto &obj : getScene("default")->getObjects())
+        {
+            if (!obj->isSolid && !obj->isDestroyed)
+                return false;
+        }
+        return true;
+    }
+
+    bool Game::isKeyJustPressed(int key)
+    {
+        bool wasPressed = (keyStates.count(key) && keyStates[key] == GLFW_PRESS);
+        bool isPressed = (glfwGetKey(getWindow()->getInstance(), key) == GLFW_PRESS);
+        keyStates[key] = isPressed ? GLFW_PRESS : GLFW_RELEASE;
+        return !isPressed && wasPressed; // 如果当前未按下且之前被按下，则为抬起事件
+    }
+
+    bool Game::isKeyJustReleased(int key)
+    {
+        bool wasReleased = (keyStates.count(key) && keyStates[key] == GLFW_RELEASE);
+        bool isReleased = (glfwGetKey(getWindow()->getInstance(), key) == GLFW_RELEASE);
+        keyStates[key] = isReleased ? GLFW_RELEASE : GLFW_PRESS;
+        return !isReleased && wasReleased; // 如果当前未释放且之前被释放，则为按下事件
+    }
 }

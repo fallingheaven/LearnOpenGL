@@ -294,6 +294,7 @@ Utility::Collision Utility::checkCollisionAABB(glm::vec3 pos1, glm::vec3 size1, 
                       pos2.y + size2.y >= pos1.y;
 
     glm::vec2 offset = pos1 - pos2;
+    offset.x *= -1;
     auto direction = Utility::VectorDirection(offset);
 
     return {collisionX && collisionY, direction,  offset};
@@ -314,12 +315,14 @@ Utility::Collision Utility::checkCollisionAABB(glm::vec3 pos1, float radius, glm
     glm::vec2 closest = aabb_center + clamped;
     // 获得圆心center和最近点closest的矢量并判断是否 length <= radius
     difference = closest - circle_center;
+    difference.x *= -1; // x轴反向处理
     auto direction = Utility::VectorDirection(difference);
-    return {glm::length(difference) < radius + 1.0f, direction, difference};
+    return {glm::length(difference) < radius + 1.0f, direction, difference * 1.1f};
 }
 
 Utility::Direction Utility::VectorDirection(glm::vec2 target)
 {
+    target = glm::normalize(target);
     glm::vec2 compass[] = {
         glm::vec2(0.0f, 1.0f),  // 上
         glm::vec2(1.0f, 0.0f),  // 右
@@ -330,7 +333,7 @@ Utility::Direction Utility::VectorDirection(glm::vec2 target)
     GLuint best_match = -1;
     for (GLuint i = 0; i < 4; i++)
     {
-        GLfloat dot_product = glm::dot(glm::normalize(target), compass[i]);
+        GLfloat dot_product = glm::dot(target, compass[i]);
         if (dot_product > max)
         {
             max = dot_product;

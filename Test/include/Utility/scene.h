@@ -76,6 +76,7 @@ namespace opengl
         glm::vec3 getRotation() const { return transform.rotation; }
         void setScale(const glm::vec3& scale) { transform.scale = scale; }
         glm::vec3 getScale() const { return transform.scale; }
+        glm::vec3 getColor() const { return glm::vec3(color); }
 
         void setScene(Scene *scene) { this->scene = scene; }
 
@@ -126,5 +127,19 @@ namespace opengl
         PropsObject() : Object() {}
         PropsObject(Scene *scene) : Object(scene) {}
         PropsObject(Transform transform, glm::vec4 color) : Object(transform, color) {}
+    };
+
+    class TextObject : public Object
+    {
+    public:
+        TextObject(const wchar_t* text) : Object(), text(text) {}
+        TextObject(Scene *scene, std::wstring& text) : Object(scene), text(text) {}
+        TextObject(Transform transform, glm::vec4 color, std::wstring& text)
+            : Object(transform, color), text(text) {}
+
+        void setText(const std::wstring& newText) { text = newText; }
+        std::wstring getText() const { return text; }
+    private:
+        std::wstring text;
     };
 }
