@@ -25,6 +25,7 @@ namespace opengl
 
         GLuint quadVAO{}, quadVBO{};
         void prepareQuadVAO();
+        void genEmptyTex();
 
         explicit camera(glm::vec3 pos = glm::vec3(0, 0, 3), glm::vec3 up = glm::vec3(0, 1, 0), float yaw = -90,
                         float pitch   = 0);
@@ -122,6 +123,8 @@ namespace opengl
         unsigned int ssaoFBO{}, ssaoColorBuffer{}, ssaoNoiseTex{};
         std::vector<glm::vec3> ssaoKernel{};
         Shader* ssaoShader;
+
+        unsigned int emptyTex{};
 
         Shader* spriteShader;
 

@@ -1,5 +1,6 @@
 #version 440 core
-out vec4 FragColor;
+layout (location = 0) out vec4 FragColor;
+layout (location = 1) out vec4 BrightColor;
 
 in vec2 TexCoords;
 
@@ -44,6 +45,8 @@ void main()
     mapped = pow(mapped, vec3(1.0 / gamma));
 
     FragColor = vec4(mapped, 1.0);
+
+    BrightColor = vec4(0.0);
 }
 
 // ACES Filmic 色调映射 (近似版，由 Krzysztof Narkowicz 提供)

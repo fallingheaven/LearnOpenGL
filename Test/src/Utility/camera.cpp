@@ -166,6 +166,20 @@ void camera::prepareQuadVAO()
     glBindVertexArray(0);
 }
 
+void camera::genEmptyTex()
+{
+    glGenTextures(1, &emptyTex);
+    glBindTexture(GL_TEXTURE_2D, emptyTex);
+    glm::vec3 black(0.0f, 0.0f, 0.0f);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, &black);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+
+
 void camera::prepareFullScreen()
 {
     float quadVertices[] = {
@@ -294,11 +308,12 @@ void camera::drawFullScreen(unsigned int tex)
     fullScreenShader->use();
     fullScreenShader->setBool("hdr", system::useHDR);
     fullScreenShader->setInt("screenTexture", 0);
+    fullScreenShader->setInt("bloomBlur", 1);
     glBindVertexArray(screenVAO);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, tex);
+    glBindTexture(GL_TEXTURE_2D, emptyTex);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glEnable(GL_BLEND);

@@ -169,8 +169,16 @@ namespace opengl
         func();
 
         // camera->drawSkybox();
-        camera->drawPingPongFrameBuffer(); // 绘制高斯模糊后的图像到相机帧缓冲
-        camera->drawFullScreen(true); // 绘制全屏四边形，将相机帧缓冲内容显示到屏幕上
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Draw PingPong FrameBuffer");
+        {
+            camera->drawPingPongFrameBuffer(); // 绘制高斯模糊后的图像到相机帧缓冲
+        }
+        glPopDebugGroup();
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Draw FullScreen");
+        {
+            camera->drawFullScreen(true); // 绘制全屏四边形，将相机帧缓冲内容显示到屏幕上
+        }
+        glPopDebugGroup();
 
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0); // 解绑帧缓冲，回到默认帧缓冲

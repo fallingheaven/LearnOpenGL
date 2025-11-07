@@ -98,3 +98,5 @@ configure_target(advancedLighting "${PROJECT_ROOT}/AdvancedLighting/advancedLigh
 configure_target(pbr "${PROJECT_ROOT}/PBR/pbr.cpp")
 
 configure_target(practice "${PROJECT_ROOT}/Practice/practice.cpp")
+
+configure_target(OIT "${PROJECT_ROOT}/Others/OIT/OIT.cpp")
