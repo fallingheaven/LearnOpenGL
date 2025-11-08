@@ -17,6 +17,26 @@ glm::vec3 Utility::GetRandomVec3(float min, float max)
     return {x, y, z};
 }
 
+glm::mat4 Utility::convertMatrixToGLMFormat(const aiMatrix4x4& aiMat)
+{
+    glm::mat4 glmMat;
+    glmMat[0][0] = aiMat.a1; glmMat[1][0] = aiMat.a2; glmMat[2][0] = aiMat.a3; glmMat[3][0] = aiMat.a4;
+    glmMat[0][1] = aiMat.b1; glmMat[1][1] = aiMat.b2; glmMat[2][1] = aiMat.b3; glmMat[3][1] = aiMat.b4;
+    glmMat[0][2] = aiMat.c1; glmMat[1][2] = aiMat.c2; glmMat[2][2] = aiMat.c3; glmMat[3][2] = aiMat.c4;
+    glmMat[0][3] = aiMat.d1; glmMat[1][3] = aiMat.d2; glmMat[2][3] = aiMat.d3; glmMat[3][3] = aiMat.d4;
+    return glmMat;
+}
+
+glm::vec3 Utility::getGLMVec(const aiVector3D& vec)
+{
+    return glm::vec3(vec.x, vec.y, vec.z);
+}
+
+glm::quat Utility::getGLMQuat(const aiQuaternion& pOrientation)
+{
+    return glm::quat(pOrientation.w, pOrientation.x, pOrientation.y, pOrientation.z);
+}
+
 unsigned int Utility::GenModelMatBuffer(int amount, glm::vec3 scale, glm::vec2 range)
 {
     std::vector<glm::mat4> modelMatrices;
@@ -141,11 +161,31 @@ unsigned int Utility::TextureFromFile(const char *path, const std::string &direc
         stbi_set_flip_vertically_on_load(false);
     }
 
+    // 将 UTF-8 路径转换为宽字符 (wchar_t)
+    int wideCharStrSize = MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, nullptr, 0);
+    if (wideCharStrSize == 0) {
+        std::cerr << "Failed to convert path to wide char (1): " << filename << std::endl;
+        return 0;
+    }
+    std::wstring w_filename(wideCharStrSize, 0);
+    if (MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, &w_filename[0], wideCharStrSize) == 0) {
+        std::cerr << "Failed to convert path to wide char (2): " << filename << std::endl;
+        return 0;
+    }
+
+    // 使用 _wfopen 打开文件
+    FILE* file = _wfopen(w_filename.c_str(), L"rb");
+    if (!file) {
+        std::cout << "Texture failed to load at path: " << filename << std::endl;
+        return 0;
+    }
+
     unsigned int textureID;
     glGenTextures(1, &textureID);
 
     int width, height, nrComponents;
-    unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
+    // unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
+    unsigned char *data = stbi_load_from_file(file, &width, &height, &nrComponents, 0);
     if (data)
     {
         GLenum internalFormat = 0, dataFormat = 0;

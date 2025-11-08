@@ -4,10 +4,12 @@
 #include <glad/glad.h>
 #include <glm/fwd.hpp>
 #include <glm/ext/matrix_transform.hpp>
+#include <glm/detail/type_quat.hpp>
 #include <iostream>
 #include <stb_image.h>
 #include <random>
 #include <texture.h>
+#include <Windows.h>
 
 
 namespace Utility
@@ -15,6 +17,10 @@ namespace Utility
     constexpr float PI = 3.14159265359;
     float angle2Radian(float angle);
     float radian2Angle(float radian);
+
+    glm::mat4 convertMatrixToGLMFormat(const aiMatrix4x4& aiMat);
+    glm::vec3 getGLMVec(const aiVector3D& vec);
+    glm::quat getGLMQuat(const aiQuaternion& pOrientation);
 
     unsigned int TextureFromFile(const char *path, const std::string &directory, bool gamma = false);
     unsigned int TextureFromMemory(const aiTexture* texture, bool gamma);

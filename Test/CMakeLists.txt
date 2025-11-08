@@ -100,3 +100,5 @@ configure_target(pbr "${PROJECT_ROOT}/PBR/pbr.cpp")
 configure_target(practice "${PROJECT_ROOT}/Practice/practice.cpp")
 
 configure_target(OIT "${PROJECT_ROOT}/Others/OIT/OIT.cpp")
+
+configure_target(animation "${PROJECT_ROOT}/Others/Animation/animation.cpp")

@@ -151,7 +151,7 @@ namespace opengl
         return true;
     }
 
-    void system::update(const std::function<void()>& func)
+    void system::update(const std::function<void()>& func, std::function<void()> guiFunc)
     {
         if (glfwGetKey(window->getInstance(), GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
@@ -159,8 +159,9 @@ namespace opengl
             return;
         }
 
+        GLfloat dt = getDeltaTime();
         window->preUpdate(); // 清空缓冲区，并处理事件
-        camera->update(getDeltaTime()); // 更新相机位置
+        camera->update(dt); // 更新相机位置
         camera->updateViewProjectionMatrix(); // 更新相机的视图和投影矩阵
         calculateFPS(); // 计算FPS
 
@@ -245,6 +246,8 @@ namespace opengl
                     ImVec2(0, 1), // UV坐标起点 (左下角)
                     ImVec2(1, 0)  // UV坐标终点 (右上角) - 这样可以翻转Y轴
                 );
+
+                guiFunc();
 
                 ImGui::End();
             }

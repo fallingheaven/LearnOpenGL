@@ -1,6 +1,4 @@
 #include <model.h>
-#include <common.h>
-#include <utility.h>
 
 Mesh::Mesh(std::vector<Vertex> &vertices, std::vector<unsigned int> &indices, std::vector<Texture> &textures)
 {
@@ -38,6 +36,13 @@ void Mesh::setupMesh()
     // 顶点切线
     glEnableVertexAttribArray(3);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
+    // 骨骼ID
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_BoneIDs));
+    // 骨骼权重
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
+
 
     glBindVertexArray(0);
 }
@@ -345,10 +350,13 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene)
         vector.z = mesh->mNormals[i].z;
         vertex.Normal = vector;
 
-        vector.x = mesh->mTangents[i].x;
-        vector.y = mesh->mTangents[i].y;
-        vector.z = mesh->mTangents[i].z;
-        vertex.Tangent = vector;
+        if (mesh->mTangents) // 检查切线是否存在
+        {
+            vector.x = mesh->mTangents[i].x;
+            vector.y = mesh->mTangents[i].y;
+            vector.z = mesh->mTangents[i].z;
+            vertex.Tangent = vector;
+        }
 
         if(mesh->mTextureCoords[0]) // 网格是否有纹理坐标？
         {
@@ -360,8 +368,13 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene)
         else
             vertex.TexCoords = glm::vec2(0.0f, 0.0f);
 
+        setVertexBoneDataToDefault(vertex);
+
         vertices.push_back(vertex);
     }
+
+    extractBoneWeightForVertices(vertices,mesh,scene);
+
     // 处理索引
     for(unsigned int i = 0; i < mesh->mNumFaces; i++)
     {
@@ -374,6 +387,10 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene)
     if(mesh->mMaterialIndex >= 0)
     {
         aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+        // for (int i = 0; i < 27; i++)
+        // {
+        //     std::cout << loadMaterialTextures(material, (aiTextureType)i, "texture_albedo", scene).size() << ' ';
+        // } std::cout << std::endl;
         // PBR 反照率贴图
         // 对于 PBR 材质，glTF 标准定义了基础颜色（Albedo）贴图。然而，为了向后兼容，Assimp 可能会同时将这个贴图报告为 aiTextureType_BASE_COLOR 和 aiTextureType_DIFFUSE。
         std::vector<Texture> albedoMaps = loadMaterialTextures(material,
@@ -426,6 +443,63 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene)
     return {vertices, indices, textures};
 }
 
+void Model::setVertexBoneDataToDefault(Vertex& vertex)
+{
+    for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+    {
+        vertex.m_BoneIDs[i] = -1;
+        vertex.m_Weights[i] = 0.0f;
+    }
+}
+
+void Model::setVertexBoneData(Vertex& vertex, int boneID, float weight)
+{
+    for (int i = 0; i < MAX_BONE_INFLUENCE; ++i)
+    {
+        if (vertex.m_BoneIDs[i] < 0)
+        {
+            vertex.m_Weights[i] = weight;
+            vertex.m_BoneIDs[i] = boneID;
+            break; // 只分配给第一个空槽
+        }
+    }
+}
+
+void Model::extractBoneWeightForVertices(std::vector<Vertex>& vertices, aiMesh* mesh, const aiScene* scene)
+{
+    for (int boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex)
+    {
+        int boneID = -1;
+        std::string boneName = mesh->mBones[boneIndex]->mName.C_Str();
+        if (m_BoneInfoMap.find(boneName) == m_BoneInfoMap.end()) // 没有预存该骨骼信息
+        {
+            BoneInfo newBoneInfo;
+            newBoneInfo.id = m_BoneCounter;
+            newBoneInfo.offset = Utility::convertMatrixToGLMFormat(
+                mesh->mBones[boneIndex]->mOffsetMatrix);
+            m_BoneInfoMap[boneName] = newBoneInfo;
+            boneID = m_BoneCounter;
+            m_BoneCounter++;
+        }
+        else
+        {
+            boneID = m_BoneInfoMap[boneName].id;
+        }
+
+        assert(boneID != -1);
+        auto weights = mesh->mBones[boneIndex]->mWeights;
+        int numWeights = mesh->mBones[boneIndex]->mNumWeights;
+
+        for (int weightIndex = 0; weightIndex < numWeights; ++weightIndex) // 将aiMesh的骨骼权重赋值给自己Mesh中的顶点
+        {
+            int vertexId = weights[weightIndex].mVertexId;
+            float weight = weights[weightIndex].mWeight;
+            assert(vertexId <= vertices.size());
+            setVertexBoneData(vertices[vertexId], boneID, weight);
+        }
+    }
+}
+
 std::vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type, const std::string& typeName, const aiScene *scene)
 {
     std::vector<Texture> textures;
@@ -450,6 +524,11 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType 
             {
                 // 是嵌入式纹理
                 std::cout << "Loading embedded texture: " << str.C_Str() << " type: " << typeName << std::endl;
+                if (Utility::getFileExtension(str.C_Str()) == "png") {
+                    stbi_set_flip_vertically_on_load(true);
+                } else {
+                    stbi_set_flip_vertically_on_load(false);
+                }
                 texture.id = Utility::TextureFromMemory(embeddedTexture, false);
                 texture.type = typeName;
                 texture.path = str;
@@ -468,4 +547,276 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType 
         }
     }
     return textures;
+}
+
+Bone::Bone(std::string  name, int ID, const aiNodeAnim* channel)
+       :
+       m_Name(std::move(name)),
+       m_ID(ID),
+       m_LocalTransform(1.0f)
+{
+    // 从 aiNodeAnim 提取关键帧数据
+    m_NumPositions = channel->mNumPositionKeys;
+
+    for (int positionIndex = 0; positionIndex < m_NumPositions; ++positionIndex)
+    {
+        aiVector3D aiPosition = channel->mPositionKeys[positionIndex].mValue;
+        float timeStamp = channel->mPositionKeys[positionIndex].mTime;
+        KeyPosition data{};
+        data.position = Utility::getGLMVec(aiPosition);
+        data.timeStamp = timeStamp;
+        m_Positions.push_back(data);
+    }
+
+    m_NumRotations = channel->mNumRotationKeys;
+    for (int rotationIndex = 0; rotationIndex < m_NumRotations; ++rotationIndex)
+    {
+        aiQuaternion aiOrientation = channel->mRotationKeys[rotationIndex].mValue;
+        float timeStamp = channel->mRotationKeys[rotationIndex].mTime;
+        KeyRotation data{};
+        data.orientation = Utility::getGLMQuat(aiOrientation);
+        data.timeStamp = timeStamp;
+        m_Rotations.push_back(data);
+    }
+
+    m_NumScalings = channel->mNumScalingKeys;
+    for (int keyIndex = 0; keyIndex < m_NumScalings; ++keyIndex)
+    {
+        aiVector3D scale = channel->mScalingKeys[keyIndex].mValue;
+        float timeStamp = channel->mScalingKeys[keyIndex].mTime;
+        KeyScale data{};
+        data.scale = Utility::getGLMVec(scale);
+        data.timeStamp = timeStamp;
+        m_Scales.push_back(data);
+    }
+}
+
+void Bone::update(float animationTime)
+{
+    glm::mat4 translation = interpolatePosition(animationTime);
+    glm::mat4 rotation = interpolateRotation(animationTime);
+    glm::mat4 scale = interpolateScaling(animationTime);
+    m_LocalTransform = translation * rotation * scale;
+}
+
+// 找到当前时间点 animationTime 所在位置关键帧的索引
+int Bone::getPositionIndex(float animationTime)
+{
+    for (int index = 0; index < m_NumPositions - 1; ++index)
+    {
+        if (animationTime < m_Positions[index + 1].timeStamp)
+            return index;
+    }
+    assert(0);
+    return 0;
+}
+
+int Bone::getRotationIndex(float animationTime)
+{
+    for (int index = 0; index < m_NumRotations - 1; ++index)
+    {
+        if (animationTime < m_Rotations[index + 1].timeStamp)
+            return index;
+    }
+    assert(0);
+    return 0;
+}
+
+int Bone::getScaleIndex(float animationTime)
+{
+    for (int index = 0; index < m_NumScalings - 1; ++index)
+    {
+        if (animationTime < m_Scales[index + 1].timeStamp)
+            return index;
+    }
+    assert(0);
+    return 0;
+}
+
+// 通过时间计算插值t
+float Bone::getScaleFactor(float lastTimeStamp, float nextTimeStamp, float animationTime)
+{
+    float scaleFactor = 0.0f;
+    float midWayLength = animationTime - lastTimeStamp;
+    float framesDiff = nextTimeStamp - lastTimeStamp;
+    scaleFactor = midWayLength / framesDiff;
+    return scaleFactor;
+}
+
+glm::mat4 Bone::interpolatePosition(float animationTime)
+{
+    if (1 == m_NumPositions)
+        return glm::translate(glm::mat4(1.0f), m_Positions[0].position);
+
+    int p0Index = getPositionIndex(animationTime);
+    int p1Index = p0Index + 1;
+    float scaleFactor = getScaleFactor(m_Positions[p0Index].timeStamp,
+        m_Positions[p1Index].timeStamp, animationTime); // 获取插值t
+    glm::vec3 finalPosition = glm::mix(m_Positions[p0Index].position,
+        m_Positions[p1Index].position, scaleFactor);
+    return glm::translate(glm::mat4(1.0f), finalPosition);
+}
+
+glm::mat4 Bone::interpolateRotation(float animationTime)
+{
+    if (1 == m_NumRotations)
+    {
+        auto rotation = glm::normalize(m_Rotations[0].orientation);
+        return glm::toMat4(rotation);
+    }
+
+    int p0Index = getRotationIndex(animationTime);
+    int p1Index = p0Index + 1;
+    float scaleFactor = getScaleFactor(m_Rotations[p0Index].timeStamp,
+        m_Rotations[p1Index].timeStamp, animationTime);
+    glm::quat finalRotation = glm::slerp(m_Rotations[p0Index].orientation,
+        m_Rotations[p1Index].orientation, scaleFactor);
+    finalRotation = glm::normalize(finalRotation);
+    return glm::toMat4(finalRotation);
+}
+
+glm::mat4 Bone::interpolateScaling(float animationTime)
+{
+    if (1 == m_NumScalings)
+        return glm::scale(glm::mat4(1.0f), m_Scales[0].scale);
+
+    int p0Index = getScaleIndex(animationTime);
+    int p1Index = p0Index + 1;
+    float scaleFactor = getScaleFactor(m_Scales[p0Index].timeStamp,
+        m_Scales[p1Index].timeStamp, animationTime);
+    glm::vec3 finalScale = glm::mix(m_Scales[p0Index].scale, m_Scales[p1Index].scale
+        , scaleFactor);
+    return glm::scale(glm::mat4(1.0f), finalScale);
+}
+
+Animation::Animation(const std::string& animationPath, Model* model)
+{
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(animationPath, aiProcess_Triangulate);
+    assert(scene && scene->mRootNode);
+    auto animation = scene->mAnimations[0];
+    m_Duration = animation->mDuration;
+    m_TicksPerSecond = animation->mTicksPerSecond;
+    readHierarchyData(m_RootNode, scene->mRootNode);
+    readMissingBones(animation, *model);
+}
+
+Bone* Animation::findBone(const std::string& name)
+{
+    auto iter = std::find_if(m_Bones.begin(), m_Bones.end(),
+        [&](const Bone& Bone)
+        {
+            return Bone.getBoneName() == name;
+        }
+    );
+    if (iter == m_Bones.end()) return nullptr;
+    else return &(*iter);
+}
+
+void Animation::readMissingBones(const aiAnimation* animation, Model& model)
+{
+    int size = animation->mNumChannels;
+
+    auto& boneInfoMap = model.getBoneInfoMap();// 获取模型的骨骼信息映射，ID+偏移矩阵
+    int& boneCount = model.getBoneCount(); // 获取模型的骨骼计数
+
+    // 遍历动画中的所有通道
+    for (int i = 0; i < size; i++)
+    {
+        auto channel = animation->mChannels[i];
+        std::string boneName = channel->mNodeName.data;
+
+        if (boneInfoMap.find(boneName) == boneInfoMap.end()) // 该骨骼不在模型的骨骼信息映射中，则添加它
+        {
+            boneInfoMap[boneName].id = boneCount;
+            boneCount++;
+        }
+        m_Bones.emplace_back(channel->mNodeName.data,
+            boneInfoMap[boneName].id, channel);
+    }
+
+    m_BoneInfoMap = boneInfoMap;
+}
+
+void Animation::readHierarchyData(AssimpNodeData& dest, const aiNode* src)
+{
+    assert(src);
+
+    dest.name = src->mName.data;
+    dest.transformation = Utility::convertMatrixToGLMFormat(src->mTransformation);
+    dest.childrenCount = src->mNumChildren;
+
+    for (int i = 0; i < src->mNumChildren; i++)
+    {
+        AssimpNodeData newData;
+        readHierarchyData(newData, src->mChildren[i]);
+        dest.children.push_back(newData);
+    }
+}
+
+Animator::Animator(Animation* Animation)
+{
+    m_CurrentTime = 0.0;
+    m_CurrentAnimation = Animation;
+
+    // 根据动画中的骨骼数量动态调整大小
+    if (m_CurrentAnimation) {
+        m_FinalBoneMatrices.resize(m_CurrentAnimation->getBoneCount(), glm::mat4(1.0f));
+        for (int i = 0; i < m_CurrentAnimation->getBoneCount(); i++)
+            m_FinalBoneMatrices.emplace_back(1.0f);
+    }
+    else {
+        // 如果没有动画，可以设置一个默认大小或留空
+        m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
+        for (int i = 0; i < 100; i++)
+            m_FinalBoneMatrices.emplace_back(1.0f);
+    }
+}
+
+void Animator::updateAnimation(float dt)
+{
+    m_DeltaTime = dt;
+    if (m_CurrentAnimation)
+    {
+        m_CurrentTime += m_CurrentAnimation->getTicksPerSecond() * dt;
+        m_CurrentTime = fmod(m_CurrentTime, m_CurrentAnimation->getDuration());
+        calculateBoneTransform(&m_CurrentAnimation->getRootNode(), glm::mat4(1.0f)); // 根节点的父变换矩阵是单位矩阵
+    }
+}
+
+void Animator::playAnimation(Animation* pAnimation)
+{
+    m_CurrentAnimation = pAnimation;
+    m_CurrentTime = 0.0f;
+}
+
+void Animator::calculateBoneTransform(const AssimpNodeData* node, glm::mat4 parentTransform)
+{
+    std::string nodeName = node->name;
+    glm::mat4 nodeTransform = node->transformation;
+
+    Bone* Bone = m_CurrentAnimation->findBone(nodeName);
+
+    // 更新骨骼的本地变换矩阵
+    if (Bone)
+    {
+        Bone->update(m_CurrentTime);
+        nodeTransform = Bone->getLocalTransform();
+    }
+
+    // 计算世界坐标系的变换矩阵
+    glm::mat4 globalTransformation = parentTransform * nodeTransform;
+
+    auto boneInfoMap = m_CurrentAnimation->getBoneIDMap();
+    if (boneInfoMap.find(nodeName) != boneInfoMap.end())
+    {
+        // 获取骨骼的offset矩阵并计算最终变换矩阵
+        // offset矩阵让顶点相对于骨骼进行变换，而不是相对于模型的原点
+        int index = boneInfoMap[nodeName].id;
+        glm::mat4 offset = boneInfoMap[nodeName].offset;
+        m_FinalBoneMatrices[index] = globalTransformation * offset;
+    }
+
+    for (int i = 0; i < node->childrenCount; i++)
+        calculateBoneTransform(&node->children[i], globalTransformation);
 }

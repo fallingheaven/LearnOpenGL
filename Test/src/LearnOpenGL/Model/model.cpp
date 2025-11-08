@@ -12,7 +12,7 @@ int main()
         return -1;
     }
 
-    camera *camera = opengl::system::getCamera();
+    opengl::camera *camera = opengl::system::getCamera();
     glm::mat4 projection =
             glm::perspective(glm::radians(45.0f), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
     camera->setProspectiveMatrix(projection);

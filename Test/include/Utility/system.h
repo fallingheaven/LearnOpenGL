@@ -16,7 +16,7 @@ namespace opengl
     public:
         // 生命周期函数
         static void init();
-        static void update(const std::function<void()>& renderFunc);
+        static void update(const std::function<void()>& renderFunc, std::function<void()> guiFunc = nullptr);
         static void close();
         static void clear();
 
