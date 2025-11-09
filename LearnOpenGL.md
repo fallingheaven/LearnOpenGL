@@ -1943,12 +1943,75 @@ $$
 
 ### 动画
 
+#### 加载
 
+首先是`assimp`库加载一个带动画的模型，或者一个动画时，它的存储结构如下 
 
-先摆个结果
+```less
+aiScene
+ ├─ mRootNode → aiNode
+ │    ├─ mName
+ │    ├─ mTransformation
+ │    ├─ mChildren[] 树形结构 ->aiNode
+ │    └─ mMeshes[] 网格索引 （指向 aiScene::mMeshes，如果是骨骼，这里就是空的）
+ │
+ ├─ mMeshes[] → aiMesh
+ │    ├─ mVertices
+ │    ├─ mNormals
+ │    ├─ mTextureCoords
+ │    ├─ mFaces 三角形面三个点的索引
+ │    ├─ mBones[] → aiBone
+ │    │     ├─ mName (骨骼名)
+ │    │     ├─ mOffsetMatrix (绑定姿态逆矩阵)
+ │    │     └─ mWeights[] (每个权重: 顶点索引 + 权重值)
+ │    └─ mMaterialIndex (索引到 aiScene::mMaterials)
+ │
+ ├─ mMaterials[] → aiMaterial
+ │    ├─ aiColor3D/AiColor4D 各类参数 (漫反射、高光、透明等)
+ │    ├─ 纹理路径 aiTextureType_DIFFUSE / SPECULAR / NORMAL 等
+ │
+ ├─ mAnimations[] → aiAnimation
+ │    ├─ mName
+ │    ├─ mDuration
+ │    ├─ mTicksPerSecond
+ │    ├─ mChannels[] → aiNodeAnim（每个骨骼占一个channel）
+ │    │     ├─ mNodeName
+ │    │     ├─ mPositionKeys[] （vec3 + 时间）
+ │    │     ├─ mRotationKeys[] （quat + 时间）
+ │    │     └─ mScalingKeys[] （vec3 + 时间）
+ │
+ └─ mTextures[] （内嵌贴图）
 
-这里先说一下，如果两个着色器的in和out没有对上，那么就算使用glUseProgram了，也不会使用这两个着色器
+```
+
+之前的模型加载，我们只用到了前三个部分，层次结构、网格、材质，我们这里要额外用到`mAnimations`
+
+这里的层次关系，对于骨骼很好理解，但对于网格有些费解，实际上，一个`aiNode`节点中，保存的是所有被`mTransformation`所影响的所有网格或骨骼；一个`aiMesh`中，保存的是这个网格本身的信息，加上所有影响这个网格的骨骼
+
+当我们使用blender打开一个fbx或者pmx模型，得到的层次关系，大多是这样的：root Node下有两个部分，一个是骨骼组，一个是网格组，对于前者，`aiNode`中的`mMeshes`就是空的，也就没有网格处理的步骤了，网格与骨骼是没有父子关系的，网格中存储的骨骼信息是离散的，这样做，在更新时只需要将骨骼组进行变换就好了
+
+#### 流程
+
+整体的流程就是：
+
+- 加载模型：进行递归调用，每次将当前的`aiNode`的网格（如果有的话）的顶点、法线、切线、三角形面索引、材质、相关骨骼都进行保存
+  - `Model`类存储`Mesh`类、所有`Mesh`的材质（优化，避免重复加载）、`map<nodeName, BoneInfo>`（所有`Bone`的 id 索引和 offset 矩阵）
+  - `Mesh`类存储顶点、法线、切线、索引、材质
+- 加载动画：遍历`mAnimations`（虽然这里是一个fbx中保存一个动画），保存的结构可以参考blender中的编辑器
+  - 在`Animation`类中保存时长、骨骼、`rootNode`、各`Bone`
+    - 这里将`aiNode`通过一个`AssimpNodeData`进行存储（包括层级结构），方便之后按层级更新骨骼位置
+  - 在`Bone`类这个骨骼在时间轴中，所有的位置、旋转、缩放的时间点和数值，以及这个骨骼的id、当前变换矩阵
+- 构建播放器：每帧遍历`Animation`的骨骼，并对骨骼位置、旋转、缩放进行插值，更新变换矩阵
+  - 这里`Animation`会利用`AssimpNodeData`递归更新，需要传递父变换
+
+#### 一些bug
+
+如果两个着色器的in和out没有对上，那么就算使用glUseProgram了，也不会使用这两个着色器
 
 还有就是加载带汉字的路径，需要转成wchar_t字符才行，否则找不到
+
+#### 结果
+
+assimp可以加载pmx模型，但是无法解析vmd动作，因此这里用的fbx模型
 
 <img src="E:\code\Learn\opengl\assets\image-20251109015721684.png" alt="image-20251109015721684" style="zoom:67%;" /> 
