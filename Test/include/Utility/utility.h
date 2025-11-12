@@ -10,6 +10,7 @@
 #include <random>
 #include <texture.h>
 #include <Windows.h>
+#include <cfloat>
 
 
 namespace Utility
@@ -21,6 +22,10 @@ namespace Utility
     glm::mat4 convertMatrixToGLMFormat(const aiMatrix4x4& aiMat);
     glm::vec3 getGLMVec(const aiVector3D& vec);
     glm::quat getGLMQuat(const aiQuaternion& pOrientation);
+
+    // 根据投影矩阵和视图矩阵获取视锥体的8个角点的世界坐标
+    std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view);
+    glm::mat4 createOrthoProjectionMatrixFromFrustumCorners(const std::vector<glm::vec4>& frustumCorners);
 
     unsigned int TextureFromFile(const char *path, const std::string &directory, bool gamma = false);
     unsigned int TextureFromMemory(const aiTexture* texture, bool gamma);

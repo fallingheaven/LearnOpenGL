@@ -17,6 +17,57 @@ glm::vec3 Utility::GetRandomVec3(float min, float max)
     return {x, y, z};
 }
 
+std::vector<glm::vec4> Utility::getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view)
+{
+    const auto inv = glm::inverse(proj * view);
+
+    std::vector<glm::vec4> frustumCorners;
+    for (unsigned int x = 0; x < 2; ++x)
+    {
+        for (unsigned int y = 0; y < 2; ++y)
+        {
+            for (unsigned int z = 0; z < 2; ++z)
+            {
+                const glm::vec4 pt =
+                    inv * glm::vec4(
+                        2.0f * x - 1.0f,
+                        2.0f * y - 1.0f,
+                        2.0f * z - 1.0f,
+                        1.0f);
+                frustumCorners.push_back(pt / pt.w);
+            }
+        }
+    }
+
+    return frustumCorners;
+}
+
+glm::mat4 Utility::createOrthoProjectionMatrixFromFrustumCorners(const std::vector<glm::vec4>& frustumCorners)
+{
+    glm::vec2 xRange = {FLT_MAX, -FLT_MAX};
+    glm::vec2 yRange = {FLT_MAX, -FLT_MAX};
+    glm::vec2 zRange = {FLT_MAX, -FLT_MAX};
+    for (auto &corner : frustumCorners)
+    {
+        xRange.x  = std::min(xRange.x,  corner.x);
+        xRange.y = std::max(xRange.y, corner.x);
+        yRange.x  = std::min(yRange.x,  corner.y);
+        yRange.y = std::max(yRange.y, corner.y);
+        zRange.x  = std::min(zRange.x,  corner.z);
+        zRange.y = std::max(zRange.y, corner.z);
+    }
+
+    constexpr float zMult = 5.0f;
+    float length = zRange.y - zRange.x;
+    // 这里是右手坐标系的
+    zRange.y = zRange.y + length * zMult; // 不需要限制范围，允许在身后
+    zRange.x = zRange.x - length * zMult;
+
+
+    const glm::mat4 lightProjection = glm::ortho(xRange.x, xRange.y, yRange.x, yRange.y, -zRange.y, -zRange.x);
+    return lightProjection;
+}
+
 glm::mat4 Utility::convertMatrixToGLMFormat(const aiMatrix4x4& aiMat)
 {
     glm::mat4 glmMat;

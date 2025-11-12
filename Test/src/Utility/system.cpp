@@ -167,7 +167,7 @@ namespace opengl
 
         camera->bindScreenFrameBuffer(); // 绑定相机的帧缓冲进行渲染
 
-        func();
+        if (func != nullptr) func();
 
         // camera->drawSkybox();
         glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Draw PingPong FrameBuffer");
@@ -247,7 +247,7 @@ namespace opengl
                     ImVec2(1, 0)  // UV坐标终点 (右上角) - 这样可以翻转Y轴
                 );
 
-                guiFunc();
+                if (guiFunc != nullptr) guiFunc();
 
                 ImGui::End();
             }

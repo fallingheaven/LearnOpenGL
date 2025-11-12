@@ -36,12 +36,12 @@ void Mesh::setupMesh()
     // 顶点切线
     glEnableVertexAttribArray(3);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
-    // 骨骼ID
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_BoneIDs));
+    // 骨骼ID，4~7留出来是因为之前是用来存实例化模型矩阵的
+    glEnableVertexAttribArray(8);
+    glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_BoneIDs));
     // 骨骼权重
-    glEnableVertexAttribArray(5);
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
+    glEnableVertexAttribArray(9);
+    glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
 
 
     glBindVertexArray(0);
@@ -243,7 +243,7 @@ void BindEmptyTexture(Shader& shader)
 void Model::Draw(Shader &shader, int baseTextureUnit) const
 {
     shader.use();
-    // BindEmptyTexture(shader);
+    BindEmptyTexture(shader);
     for(auto & mesh : meshes)
         mesh.Draw(shader, baseTextureUnit);
 }
@@ -251,7 +251,7 @@ void Model::Draw(Shader &shader, int baseTextureUnit) const
 void Model::DrawInstanced(Shader& shader, unsigned int amount, int baseTextureUnit) const
 {
     shader.use();
-    // BindEmptyTexture(shader);
+    BindEmptyTexture(shader);
     for (auto & mesh : meshes)
         mesh.DrawInstanced(shader, amount, baseTextureUnit);
 }

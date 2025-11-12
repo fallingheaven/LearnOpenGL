@@ -320,7 +320,7 @@ void camera::drawFullScreen(unsigned int tex)
     glEnable(GL_DEPTH_TEST);
 }
 
-void camera::drawFullScreen(Shader* shader, unsigned int tex)
+void camera::drawFullScreen(Shader* shader, int tex)
 {
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
@@ -334,11 +334,6 @@ void camera::drawFullScreen(Shader* shader, unsigned int tex)
     {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, tex);
-    }
-    else
-    {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, colorBufferTex[0]);
     }
 
     glDrawArrays(GL_TRIANGLES, 0, 6);

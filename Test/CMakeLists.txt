@@ -102,3 +102,5 @@ configure_target(practice "${PROJECT_ROOT}/Practice/practice.cpp")
 configure_target(OIT "${PROJECT_ROOT}/Others/OIT/OIT.cpp")
 
 configure_target(animation "${PROJECT_ROOT}/Others/Animation/animation.cpp")
+
+configure_target(csm "${PROJECT_ROOT}/Others/CSM/csm.cpp")

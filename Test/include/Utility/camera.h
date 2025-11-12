@@ -48,7 +48,7 @@ namespace opengl
         unsigned int getDisplayColorBufferTex() const { return displayColorBufferTex; }
         void drawFullScreen(bool renderToDisplayFBO = false);
         void drawFullScreen(unsigned int tex);// 供外部调用，绘制指定帧缓冲的颜色纹理到相机fbo
-        void drawFullScreen(Shader* shader, unsigned int tex = -1); // 使用指定着色器绘制全屏四边形
+        void drawFullScreen(Shader* shader, int tex = -1); // 使用指定着色器绘制全屏四边形
         void setBlurShader(Shader* shader) { blurShader = shader; }
         void genPingPongFrameBuffer(); // 生成ping-pong帧缓冲，用于高斯模糊
         void drawPingPongFrameBuffer();
