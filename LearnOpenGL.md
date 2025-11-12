@@ -2096,7 +2096,54 @@ NDC（归一化设备坐标）空间
 
 #### 视锥体剔除
 
+##### 思路
+
 是一种优化方法，也就是不在视锥体内的物体不进行渲染
 
 文中只是根据物体AABB与视锥体是否有交来判断是否绘制，可以添加空间分区进行加速判断
+
+##### 实现
+
+首先需要表示出视锥体，通过六个平面表示，每个平面通过其上的一个点和法向量表示
+
+```c++
+Frustum createFrustumFromCamera(const Camera& cam, float aspect, float fovY,
+                                                                float zNear, float zFar)
+{
+    Frustum     frustum;
+    const float halfVSide = zFar * tanf(fovY * .5f); // 远平面y轴长度的一半
+    const float halfHSide = halfVSide * aspect; // 远平面x轴长度的一半
+    const glm::vec3 frontMultFar = zFar * cam.Front; // camera到远平面中心的向量
+
+    frustum.nearFace = { cam.Position + zNear * cam.Front, cam.Front };
+    frustum.farFace = { cam.Position + frontMultFar, -cam.Front };
+    frustum.rightFace = { cam.Position,
+                            glm::cross(frontMultFar - cam.Right * halfHSide, cam.Up) };
+    frustum.leftFace = { cam.Position,
+                            glm::cross(cam.Up,frontMultFar + cam.Right * halfHSide) };
+    frustum.topFace = { cam.Position,
+                            glm::cross(cam.Right, frontMultFar - cam.Up * halfVSide) };
+    frustum.bottomFace = { cam.Position,
+                            glm::cross(frontMultFar + cam.Up * halfVSide, cam.Right) };
+    // 上下左右面的法线都通过叉乘camera到角点的向量与camera的Right或Up向量得到的
+
+    return frustum;
+}
+```
+
+然后是如何判断一个物体和视锥体有交，首先要确定如何表示一个物体所占的大致范围
+
+就是所谓的包围盒Bounding volume
+
+- AABB：使用和轴平行的面来包围，表现为一个立方体，物体变换时需要重新计算
+  - Slab：用来表示两条线或两个平面之间的空间，在这里，AABB可以由3个Slab的交集表示
+- OBB：使用任意变换的立方体来包围，可以适应物体变换
+- Sphere：用球来包围
+- Ellipsoid：椭球包围
+- Cylinder：用圆柱包围，圆柱轴往往和场景对齐，方便通过半径判断有交
+- Capsule：用胶囊包围，一个胶囊由半径和线段表示，可以随物体变换，方便求交
+- k-DOP：由k个Slab交集表示的范围，如AABB和OBB都是3-DOP
+- Convex Hull：能够包围物体的最小凸包
+
+多数包围盒的求交中都会通过 separating axis theorem 来进行判断，也就是是否在一个轴上他们是不重叠的
 

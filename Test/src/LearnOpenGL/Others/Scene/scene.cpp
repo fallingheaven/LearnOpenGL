@@ -55,15 +55,15 @@ void drawEntity(Entity* entity, Shader* shader)
 
 void updateTransform()
 {
-    // for (int i = 1; i < 5; i++)
-    // {
-    //     auto XiLian = entities["XiLian" + std::to_string(i)];
-    //     float angle = (float)glfwGetTime() * 50.0f + i * 360.0f / 5.0f;
-    //     float radius = 20.0f;
-    //     float x = radius * cos(glm::radians(angle));
-    //     float y = radius * sin(glm::radians(angle));
-    //     XiLian->setPosition({x, y, 0});
-    // }
+    for (int i = 1; i < 5; i++)
+    {
+        auto XiLian = entities["XiLian" + std::to_string(i)];
+        float angle = (float)glfwGetTime() * 50.0f + i * 360.0f / 5.0f;
+        float radius = 20.0f;
+        float x = radius * cos(glm::radians(angle));
+        float y = radius * sin(glm::radians(angle));
+        XiLian->setPosition({x, y, 0});
+    }
 }
 
 int main()
