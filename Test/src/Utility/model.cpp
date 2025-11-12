@@ -820,3 +820,28 @@ void Animator::calculateBoneTransform(const AssimpNodeData* node, glm::mat4 pare
     for (int i = 0; i < node->childrenCount; i++)
         calculateBoneTransform(&node->children[i], globalTransformation);
 }
+
+glm::mat4 Entity::getModelMatrix()
+{
+    auto globalMat = glm::mat4(1.0f);
+    if (parent != nullptr)
+    {
+        globalMat = parent->getModelMatrix();
+    }
+
+    if (transform.isDirty)
+    {
+        auto model = glm::mat4(1.0f);
+        model = glm::translate(model, transform.position);
+        model = glm::rotate(model, glm::radians(transform.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(transform.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(transform.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::scale(model, transform.scale);
+
+        transform.modelMat = model;
+        transform.isDirty = false;
+    }
+
+    return globalMat * transform.modelMat;
+}
+

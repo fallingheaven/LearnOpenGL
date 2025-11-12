@@ -205,3 +205,62 @@ private:
     float m_CurrentTime;
     float m_DeltaTime;
 };
+
+class Entity
+{
+public:
+    struct Transform {
+        glm::vec3 position;
+        glm::vec3 rotation;
+        glm::vec3 scale;
+
+        glm::mat4 modelMat;
+        bool isDirty = true;
+        Transform()
+        {
+            position = glm::vec3(0.0f, 0.0f, 0.0f);
+            rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+            scale    = glm::vec3(1.0f, 1.0f, 1.0f);
+            modelMat = glm::mat4(1.0f);
+        }
+    };
+    Transform transform;
+
+    Entity(const char* path) { this->model = new Model(path); }
+    Entity(Model* model) { this->model = model; }
+    ~Entity() {
+        delete model;
+        for (auto child : children) {
+            delete child;
+        }
+    }
+
+    glm::mat4 getModelMatrix();
+    std::list<Entity*>& getChildren() { return children; }
+    Entity* getParent() { return parent; }
+
+    void setPosition(const glm::vec3& position) {
+        transform.position = position;
+        transform.isDirty = true;
+    }
+    void setRotation(const glm::vec3& rotation) {
+        transform.rotation = rotation;
+        transform.isDirty = true;
+    }
+    void setScale(const glm::vec3& scale) {
+        transform.scale = scale;
+        transform.isDirty = true;
+    }
+    void Draw(Shader& shader) {
+        model->Draw(shader);
+    }
+    void addChild(Entity* child) {
+        child->parent = this;
+        children.push_back(child);
+    }
+
+private:
+    Model* model = nullptr;
+    Entity* parent = nullptr;
+    std::list<Entity*> children;
+};

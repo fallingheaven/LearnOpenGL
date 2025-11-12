@@ -104,3 +104,5 @@ configure_target(OIT "${PROJECT_ROOT}/Others/OIT/OIT.cpp")
 configure_target(animation "${PROJECT_ROOT}/Others/Animation/animation.cpp")
 
 configure_target(csm "${PROJECT_ROOT}/Others/CSM/csm.cpp")
+
+configure_target(scene "${PROJECT_ROOT}/Others/Scene/scene.cpp")
