@@ -206,36 +206,183 @@ private:
     float m_DeltaTime;
 };
 
+struct Plane
+{
+    glm::vec3 point; // 平面上一点
+
+    glm::vec3 normal = { 0.f, 0.f, 0.f };
+
+    float getSignedDistanceToPlane(const glm::vec3& point) const
+    {
+        glm::vec3 offset = point - this->point;
+        return glm::dot(offset, normal);
+    }
+};
+
+struct Frustum
+{
+    Plane topFace;
+    Plane bottomFace;
+    Plane leftFace;
+    Plane rightFace;
+    Plane nearFace;
+    Plane farFace;
+};
+
+inline Frustum createFrustumFromCamera(const opengl::camera& cam, float aspect, float fovY,
+                                       float zNear, float zFar) // 得到的平面法线都是指向内部的
+{
+    Frustum     frustum;
+    const float halfVSide = zFar * tanf(fovY * .5f);
+    const float halfHSide = halfVSide * aspect;
+    const glm::vec3 frontMultFar = zFar * cam.Front;
+
+    frustum.nearFace = { cam.Position + zNear * cam.Front, cam.Front };
+    frustum.farFace = { cam.Position + frontMultFar, -cam.Front };
+    frustum.rightFace = { cam.Position,
+                            normalize(glm::cross(cam.Up, frontMultFar + cam.Right * halfHSide)) };
+    frustum.leftFace = { cam.Position,
+                            normalize(glm::cross(frontMultFar - cam.Right * halfHSide, cam.Up)) };
+    frustum.topFace = { cam.Position,
+                            normalize(glm::cross(frontMultFar + cam.Up * halfVSide, cam.Right)) };
+    frustum.bottomFace = { cam.Position,
+                            normalize(glm::cross(cam.Right, frontMultFar - cam.Up * halfVSide)) };
+
+    return frustum;
+}
+
+struct Transform {
+    glm::vec3 position;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+
+    glm::mat4 modelMat;
+    bool isDirty = true;
+    Transform()
+    {
+        position = glm::vec3(0.0f, 0.0f, 0.0f);
+        rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        scale    = glm::vec3(1.0f, 1.0f, 1.0f);
+        modelMat = glm::mat4(1.0f);
+    }
+
+    glm::mat4 getModelMatrix()
+    {
+        if (isDirty)
+        {
+            auto model = glm::mat4(1.0f);
+            model = glm::translate(model, position);
+            model = glm::rotate(model, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+            model = glm::scale(model, scale);
+
+            modelMat = model;
+            isDirty = false;
+        }
+        return modelMat;
+    }
+};
+
+struct Volume
+{
+    virtual ~Volume() = default;
+
+    virtual bool isOnFrustum(Frustum& camFrustum, const glm::mat4& worldModel, const glm::vec3& worldScale) const = 0;
+};
+
+struct SphereVolume : public Volume
+{
+    glm::vec3 center;
+    float radius;
+
+    SphereVolume(glm::vec3 center, float radius) : center(center), radius(radius) {}
+
+    bool isOnOrForwardPlane(const Plane& plane) const
+    {
+        return plane.getSignedDistanceToPlane(center) > -radius;
+    }
+
+    bool isOnFrustum(Frustum& camFrustum, const glm::mat4& worldModel, const glm::vec3& worldScale) const override
+    {
+        glm::vec4 worldCenter = worldModel * glm::vec4(center, 1.0f);
+        float worldRadius = std::max(std::max(worldScale.x, worldScale.y), worldScale.z) * radius;
+
+        SphereVolume worldSphere({worldCenter.x, worldCenter.y, worldCenter.z}, worldRadius);
+
+        return worldSphere.isOnOrForwardPlane(camFrustum.topFace) &&
+               worldSphere.isOnOrForwardPlane(camFrustum.bottomFace) &&
+               worldSphere.isOnOrForwardPlane(camFrustum.leftFace) &&
+               worldSphere.isOnOrForwardPlane(camFrustum.rightFace) &&
+               worldSphere.isOnOrForwardPlane(camFrustum.nearFace) &&
+               worldSphere.isOnOrForwardPlane(camFrustum.farFace);
+    }
+};
+
+struct AABBVolume : public Volume
+{
+    glm::vec3 center;
+    glm::vec3 halfSize;
+
+    AABBVolume(glm::vec3 center, glm::vec3 halfSize) : center(center), halfSize(halfSize) {}
+
+    bool isOnOrForwardPlane(const Plane& plane) const
+    {
+        // Compute the projection interval radius of b onto L(t) = b.c + t * p.n
+        const float r = halfSize.x * std::abs(plane.normal.x) +
+                halfSize.y * std::abs(plane.normal.y) + halfSize.z * std::abs(plane.normal.z);
+
+        return -r <= plane.getSignedDistanceToPlane(center);
+    }
+
+    bool isOnFrustum(Frustum& camFrustum, const glm::mat4& worldModel, const glm::vec3& worldScale) const override
+    {
+        const glm::vec3 globalCenter{ worldModel * glm::vec4(center, 1.f) };
+
+        const glm::vec3 right   = glm::normalize(worldModel * glm::vec4(1.0f, 0.0f, 0.0f, 0.0f)) * worldScale.x * halfSize.x;
+        const glm::vec3 up      = glm::normalize(worldModel * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)) * worldScale.y * halfSize.y;
+        const glm::vec3 forward = glm::normalize(worldModel * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)) * worldScale.z * halfSize.z;
+
+        const float newIi = std::abs(glm::dot(glm::vec3{ 1.f, 0.f, 0.f }, right)) +
+            std::abs(glm::dot(glm::vec3{ 1.f, 0.f, 0.f }, up)) +
+            std::abs(glm::dot(glm::vec3{ 1.f, 0.f, 0.f }, forward));
+
+        const float newIj = std::abs(glm::dot(glm::vec3{ 0.f, 1.f, 0.f }, right)) +
+            std::abs(glm::dot(glm::vec3{ 0.f, 1.f, 0.f }, up)) +
+            std::abs(glm::dot(glm::vec3{ 0.f, 1.f, 0.f }, forward));
+
+        const float newIk = std::abs(glm::dot(glm::vec3{ 0.f, 0.f, 1.f }, right)) +
+            std::abs(glm::dot(glm::vec3{ 0.f, 0.f, 1.f }, up)) +
+            std::abs(glm::dot(glm::vec3{ 0.f, 0.f, 1.f }, forward));
+
+        //We not need to divise scale because it's based on the half extention of the AABB
+        const AABBVolume globalAABB(globalCenter, {newIi, newIj, newIk});
+
+        return (globalAABB.isOnOrForwardPlane(camFrustum.leftFace) &&
+            globalAABB.isOnOrForwardPlane(camFrustum.rightFace) &&
+            globalAABB.isOnOrForwardPlane(camFrustum.topFace) &&
+            globalAABB.isOnOrForwardPlane(camFrustum.bottomFace) &&
+            globalAABB.isOnOrForwardPlane(camFrustum.nearFace) &&
+            globalAABB.isOnOrForwardPlane(camFrustum.farFace));
+    }
+};
+
 class Entity
 {
 public:
-    struct Transform {
-        glm::vec3 position;
-        glm::vec3 rotation;
-        glm::vec3 scale;
-
-        glm::mat4 modelMat;
-        bool isDirty = true;
-        Transform()
-        {
-            position = glm::vec3(0.0f, 0.0f, 0.0f);
-            rotation = glm::vec3(0.0f, 0.0f, 0.0f);
-            scale    = glm::vec3(1.0f, 1.0f, 1.0f);
-            modelMat = glm::mat4(1.0f);
-        }
-    };
     Transform transform;
+    Volume* volume;
 
-    Entity(const char* path) { this->model = new Model(path); }
-    Entity(Model* model) { this->model = model; }
+    Entity(const char* path): volume() { this->model = new Model(path); }
+    Entity(Model* model): volume() { this->model = model; }
     ~Entity() {
-        delete model;
+        // delete model;
         for (auto child : children) {
             delete child;
         }
     }
 
-    glm::mat4 getModelMatrix();
+    glm::mat4 getModelMatrix(); // 得到全局模型矩阵
     std::list<Entity*>& getChildren() { return children; }
     Entity* getParent() { return parent; }
 
@@ -257,6 +404,22 @@ public:
     void addChild(Entity* child) {
         child->parent = this;
         children.push_back(child);
+    }
+    void setVolume(Volume* volume) {
+        this->volume = volume;
+    }
+    glm::vec3 getWorldScale() const {
+        glm::vec3 s = transform.scale;
+        if (parent) {
+            s *= parent->getWorldScale();
+        }
+        return s;
+    }
+    bool isOnFrustum(Frustum& camFrustum) {
+        if (volume == nullptr) return true;
+        glm::mat4 worldMat = getModelMatrix();
+        glm::vec3 worldScale = getWorldScale();
+        return volume->isOnFrustum(camFrustum, worldMat, worldScale);
     }
 
 private:

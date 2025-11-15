@@ -85,7 +85,7 @@ namespace opengl
 
         // 设置相机的投影矩阵
         glm::mat4 projection =
-                glm::perspective(glm::radians(45.0f), (float)opengl::window::getWidth() / (float)opengl::window::getHeight(), camera->getNearPlane(), camera->getFarPlane());
+                glm::perspective(glm::radians(camera->Zoom), (float)opengl::window::getWidth() / (float)opengl::window::getHeight(), camera->getNearPlane(), camera->getFarPlane());
         camera->setProspectiveMatrix(projection);
         // 设置天空盒
         {

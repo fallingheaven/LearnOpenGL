@@ -101,7 +101,7 @@ namespace opengl
         glViewport(0, 0, width, height);
 
         glm::mat4 projection =
-            glm::perspective(glm::radians(45.0f), (float)getWidth() / (float)getHeight(), 0.1f, 100.0f);
+            glm::perspective(glm::radians(system::getCamera()->Zoom), (float)getWidth() / (float)getHeight(), system::getCamera()->getNearPlane(), system::getCamera()->getFarPlane());
         system::getCamera()->setProspectiveMatrix(projection);
     }
 

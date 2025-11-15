@@ -650,6 +650,10 @@ void camera::bindUniformBlock(unsigned int bindingPoint, GLsizei blockSize)
 
 void camera::updateViewProjectionMatrix()
 {
+    glm::mat4 projection =
+                glm::perspective(glm::radians(Zoom), (float)opengl::window::getWidth() / (float)opengl::window::getHeight(), getNearPlane(), getFarPlane());
+    setProspectiveMatrix(projection);
+
     glBindBuffer(GL_UNIFORM_BUFFER, ubo[0]);
     MatrixBuffer matrices = {
         .projection = prospectiveMatrix,
@@ -741,6 +745,7 @@ void camera::update(float dt)
 void camera::processMouseScroll(float yOff)
 {
     Zoom -= yOff;
-    if (Zoom < 1.0f) Zoom = 1.0f;
-    if (Zoom > 45.0f) Zoom = 45.0f;
+    // std::cout << yOff << ' ' << Zoom << std::endl;
+    if (Zoom < 30.0f) Zoom = 30.0f;
+    if (Zoom > 60.0f) Zoom = 60.0f;
 }
